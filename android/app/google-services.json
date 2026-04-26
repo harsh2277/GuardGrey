@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "181000924561",
+    "project_id": "guardpulse-e3d24",
+    "storage_bucket": "guardpulse-e3d24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:181000924561:android:7e2b9b10a69d0e6d1bfe30",
+        "android_client_info": {
+          "package_name": "com.example.guardgrey.guardgrey"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtgEhuoCZQiWznXduQ675lhJT3RIqGBfo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
