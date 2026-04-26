@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import 'branches_screen.dart';
 import 'dashboard_screen.dart';
-import 'clients_screen.dart';
 import 'sites_screen.dart';
 import 'managers_screen.dart';
 import 'profile_screen.dart';
@@ -19,7 +19,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const ClientsScreen(),
+    const BranchesScreen(),
     const SitesScreen(),
     const ManagersScreen(),
     const ProfileScreen(),
@@ -85,9 +85,9 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
                       Expanded(
                         child: _buildNavItem(
                           index: 1,
-                          label: 'Clients',
-                          icon: Icons.business_outlined,
-                          activeIcon: Icons.business_rounded,
+                          label: 'Branches',
+                          icon: Icons.account_tree_outlined,
+                          activeIcon: Icons.account_tree_rounded,
                         ),
                       ),
                       Expanded(

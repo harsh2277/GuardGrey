@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_colors.dart';
 import '../widgets/kpi_card.dart';
+import '../widgets/admin_search_bar.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -120,53 +121,8 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.neutral200),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.search_rounded,
-            color: AppColors.neutral500,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              maxLines: 1,
-              textAlignVertical: TextAlignVertical.center,
-              textInputAction: TextInputAction.search,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.neutral800,
-                fontWeight: FontWeight.w500,
-                height: 1.2,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search site, manager...',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.neutral500,
-                  height: 1.2,
-                ),
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                isDense: true,
-                isCollapsed: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 17),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return const AdminSearchBar(
+      hintText: 'Search site, manager...',
     );
   }
 
