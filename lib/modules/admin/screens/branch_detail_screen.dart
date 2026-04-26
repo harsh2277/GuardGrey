@@ -293,6 +293,12 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
                 padding: const EdgeInsets.only(right: 20),
                 child: PopupMenuButton<String>(
                   tooltip: 'More actions',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  borderRadius: BorderRadius.circular(999),
                   color: Colors.white,
                   surfaceTintColor: Colors.white,
                   shape: RoundedRectangleBorder(
