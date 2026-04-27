@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'admin_main_screen.dart';
+
+import '../../../routes/app_routes.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -20,10 +21,7 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AdminMainScreen()),
-                  );
+                  Navigator.pushReplacementNamed(context, AppRoutes.main);
                 },
                 child: const Text('Login'),
               ),

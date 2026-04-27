@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+
+import '../core/theme/app_colors.dart';
+import '../screens/attendance/attendance_screen.dart';
+import '../screens/clients/clients_screen.dart';
+import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/more/more_screen.dart';
+import '../screens/sites/sites_screen.dart';
+import '../widgets/bottom_nav_bar.dart';
+
+class MainNavigation extends StatefulWidget {
+  const MainNavigation({super.key});
+
+  @override
+  State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends State<MainNavigation> {
+  int _selectedIndex = 0;
+
+  late final List<Widget> _screens = [
+    const DashboardScreen(),
+    const SitesScreen(),
+    const AttendanceScreen(),
+    const ClientsScreen(),
+    const MoreScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    if (_selectedIndex == index) {
+      return;
+    }
+
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      extendBody: true,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: BottomNavBar(
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
+      ),
+    );
+  }
+}

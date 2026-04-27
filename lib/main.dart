@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+
 import 'core/theme/app_theme.dart';
-import 'modules/admin/screens/login_screen.dart';
+import 'firebase_options.dart';
+import 'routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,9 +22,9 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'GuardGrey',
       theme: AppTheme.lightTheme,
-      // Force Light Mode as requested
       themeMode: ThemeMode.light,
-      home: const LoginScreen(),
+      initialRoute: AppRoutes.login,
+      onGenerateRoute: AppRoutes.onGenerateRoute,
     );
   }
 }
