@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../modules/admin/data/admin_dummy_data.dart';
+import '../../modules/admin/models/branch_model.dart';
 import '../../modules/admin/models/client_model.dart';
 import '../../modules/admin/models/site_model.dart';
+import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/admin_search_bar.dart';
 import 'add_client_screen.dart';
 import 'client_detail_screen.dart';
@@ -17,113 +18,27 @@ class ClientsScreen extends StatefulWidget {
 }
 
 class _ClientsScreenState extends State<ClientsScreen> {
-  late final List<ClientModel> _clients;
-  late List<SiteModel> _sites;
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   String _searchQuery = '';
 
-  List<ClientModel> get _filteredClients {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return _clients;
-    }
-
-    return _clients.where((client) {
-      final branchName = AdminDummyData.getBranchName(client.branchId);
-      return client.name.toLowerCase().contains(query) ||
-          client.email.toLowerCase().contains(query) ||
-          client.phone.toLowerCase().contains(query) ||
-          branchName.toLowerCase().contains(query);
-    }).toList(growable: false);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _clients = AdminDummyData.clients.toList(growable: true);
-    _sites = AdminDummyData.sites.toList(growable: true);
-  }
-
   Future<void> _openAddClient() async {
-    final result = await Navigator.push<ClientEditorResult>(
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => AddClientScreen(
-          allSites: _sites,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const AddClientScreen()),
     );
-
-    if (result != null) {
-      setState(() {
-        _clients.insert(0, result.client);
-        _applyClientSiteAssignments(
-          clientId: result.client.id,
-          selectedSiteIds: result.siteIds,
-        );
-      });
-    }
   }
 
   Future<void> _openClientDetail(ClientModel client) async {
-    final result = await Navigator.push<ClientDetailResult>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => ClientDetailScreen(
-          client: client,
-          allSites: _sites,
-        ),
+        builder: (_) => ClientDetailScreen(client: client),
       ),
     );
-
-    if (result == null) return;
-
-    if (result.deleted) {
-      setState(() {
-        _clients.removeWhere((item) => item.id == client.id);
-        _applyClientSiteAssignments(
-          clientId: client.id,
-          selectedSiteIds: const <String>[],
-        );
-      });
-      return;
-    }
-
-    if (result.client != null) {
-      setState(() {
-        final index = _clients.indexWhere((item) => item.id == client.id);
-        if (index != -1) {
-          _clients[index] = result.client!;
-        }
-        _applyClientSiteAssignments(
-          clientId: client.id,
-          selectedSiteIds: result.siteIds,
-        );
-      });
-    }
-  }
-
-  void _applyClientSiteAssignments({
-    required String clientId,
-    required List<String> selectedSiteIds,
-  }) {
-    final selectedIdSet = selectedSiteIds.toSet();
-    _sites = _sites.map((site) {
-      if (selectedIdSet.contains(site.id)) {
-        return site.copyWith(clientId: clientId);
-      }
-
-      if (site.clientId == clientId) {
-        return site.copyWith(clientId: '');
-      }
-
-      return site;
-    }).toList(growable: true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final clients = _filteredClients;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
@@ -169,120 +84,208 @@ class _ClientsScreenState extends State<ClientsScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: clients.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      itemCount: clients.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final client = clients[index];
-                        final List<SiteModel> sites = _sites
-                            .where((site) => site.clientId == client.id)
-                            .toList(growable: false);
-                        final branchName =
-                            AdminDummyData.getBranchName(client.branchId);
+              child: StreamBuilder<List<ClientModel>>(
+                stream: _repository.watchClients(),
+                builder: (context, clientsSnapshot) {
+                  if (clientsSnapshot.connectionState ==
+                          ConnectionState.waiting &&
+                      !clientsSnapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                        return Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () => _openClientDetail(client),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: AppColors.neutral200),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary50,
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                        ),
-                                        child: const Icon(
-                                          Icons.business_outlined,
-                                          color: AppColors.primary600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          client.name,
-                                          style:
-                                              AppTextStyles.bodyLarge.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.neutral900,
+                  if (clientsSnapshot.hasError) {
+                    return _buildErrorState();
+                  }
+
+                  return StreamBuilder<List<SiteModel>>(
+                    stream: _repository.watchSites(),
+                    builder: (context, sitesSnapshot) {
+                      final sites = sitesSnapshot.data ?? const [];
+                      return StreamBuilder<List<BranchModel>>(
+                        stream: _repository.watchBranches(),
+                        builder: (context, branchesSnapshot) {
+                          final branches = branchesSnapshot.data ?? const [];
+                          final clients = _filterClients(
+                            clientsSnapshot.data ?? const [],
+                            branches: branches,
+                          );
+
+                          return clients.isEmpty
+                              ? _buildEmptyState()
+                              : ListView.separated(
+                                  itemCount: clients.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final client = clients[index];
+                                    final assignedSites = sites
+                                        .where(
+                                          (site) => site.clientId == client.id,
+                                        )
+                                        .toList(growable: false);
+                                    final branchName = _branchName(
+                                      branches,
+                                      client.branchId,
+                                    );
+
+                                    return Material(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: InkWell(
+                                        borderRadius:
+                                            BorderRadius.circular(18),
+                                        onTap: () => _openClientDetail(client),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                            border: Border.all(
+                                              color: AppColors.neutral200,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 44,
+                                                    height: 44,
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          AppColors.primary50,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                        14,
+                                                      ),
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.business_outlined,
+                                                      color:
+                                                          AppColors.primary600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Text(
+                                                      client.name,
+                                                      style: AppTextStyles
+                                                          .bodyLarge
+                                                          .copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: AppColors
+                                                            .neutral900,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const Icon(
+                                                    Icons.chevron_right_rounded,
+                                                    color:
+                                                        AppColors.neutral400,
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                client.email,
+                                                style: AppTextStyles.bodyMedium
+                                                    .copyWith(
+                                                  color:
+                                                      AppColors.neutral600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                client.phone,
+                                                style: AppTextStyles.bodySmall
+                                                    .copyWith(
+                                                  color:
+                                                      AppColors.neutral500,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      branchName,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: AppTextStyles
+                                                          .bodySmall
+                                                          .copyWith(
+                                                        color: AppColors
+                                                            .neutral500,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Text(
+                                                    '${assignedSites.length} ${assignedSites.length == 1 ? 'Site' : 'Sites'}',
+                                                    style: AppTextStyles
+                                                        .bodySmall
+                                                        .copyWith(
+                                                      color: AppColors
+                                                          .primary600,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
-                                      const Icon(
-                                        Icons.chevron_right_rounded,
-                                        color: AppColors.neutral400,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    client.email,
-                                    style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.neutral600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    client.phone,
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.neutral500,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          branchName,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style:
-                                              AppTextStyles.bodySmall.copyWith(
-                                            color: AppColors.neutral500,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        '${sites.length} ${sites.length == 1 ? 'Site' : 'Sites'}',
-                                        style:
-                                            AppTextStyles.bodySmall.copyWith(
-                                          color: AppColors.primary600,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                                    );
+                                  },
+                                );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<ClientModel> _filterClients(
+    List<ClientModel> clients, {
+    required List<BranchModel> branches,
+  }) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return clients;
+    }
+
+    return clients.where((client) {
+      final branchName = _branchName(branches, client.branchId);
+      return client.name.toLowerCase().contains(query) ||
+          client.email.toLowerCase().contains(query) ||
+          client.phone.toLowerCase().contains(query) ||
+          branchName.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  String _branchName(List<BranchModel> branches, String branchId) {
+    for (final branch in branches) {
+      if (branch.id == branchId) {
+        return branch.name;
+      }
+    }
+    return 'Unassigned Branch';
   }
 
   Widget _buildEmptyState() {
@@ -305,18 +308,29 @@ class _ClientsScreenState extends State<ClientsScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No clients found',
+            'No data available',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
-            'Client records will appear here once they are available.',
+            'Client records will appear here once data is available.',
             textAlign: TextAlign.center,
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.neutral500,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Text(
+        'Unable to load clients.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
       ),
     );
   }

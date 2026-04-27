@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../data/admin_dummy_data.dart';
 import '../models/branch_model.dart';
+import '../services/firestore_admin_repository.dart';
 import '../widgets/admin_search_bar.dart';
 import '../widgets/branch_card.dart';
 import 'add_branch_screen.dart';
@@ -16,83 +16,30 @@ class BranchesScreen extends StatefulWidget {
 }
 
 class _BranchesScreenState extends State<BranchesScreen> {
-  late final List<BranchModel> _branches;
-
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   String _searchQuery = '';
 
-  List<BranchModel> get _filteredBranches {
-    if (_searchQuery.trim().isEmpty) {
-      return _branches;
-    }
-
-    final query = _searchQuery.toLowerCase();
-    return _branches.where((branch) {
-      return branch.name.toLowerCase().contains(query) ||
-          branch.city.toLowerCase().contains(query) ||
-          branch.address.toLowerCase().contains(query);
-    }).toList();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _branches = AdminDummyData.branches.toList(growable: true);
-  }
-
   Future<void> _openAddBranch() async {
-    final branch = await Navigator.push<BranchModel>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const AddBranchScreen()),
     );
-
-    if (branch != null) {
-      setState(() {
-        _branches.insert(0, branch);
-      });
-    }
   }
 
   Future<void> _openEditBranch(BranchModel branch) async {
-    final updated = await Navigator.push<BranchModel>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => AddBranchScreen(branch: branch)),
     );
-
-    if (updated != null) {
-      setState(() {
-        final index = _branches.indexWhere((item) => item.id == branch.id);
-        if (index != -1) {
-          _branches[index] = updated;
-        }
-      });
-    }
   }
 
   Future<void> _openBranchDetails(BranchModel branch) async {
-    final result = await Navigator.push<BranchDetailResult>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (_) => BranchDetailScreen(branch: branch),
       ),
     );
-
-    if (result == null) return;
-
-    if (result.deleted) {
-      setState(() {
-        _branches.removeWhere((item) => item.id == branch.id);
-      });
-      return;
-    }
-
-    if (result.branch != null) {
-      setState(() {
-        final index = _branches.indexWhere((item) => item.id == branch.id);
-        if (index != -1) {
-          _branches[index] = result.branch!;
-        }
-      });
-    }
   }
 
   Future<void> _deleteBranch(BranchModel branch) async {
@@ -132,16 +79,12 @@ class _BranchesScreenState extends State<BranchesScreen> {
     );
 
     if (confirmed == true) {
-      setState(() {
-        _branches.removeWhere((item) => item.id == branch.id);
-      });
+      await _repository.deleteBranch(branch.id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final branches = _filteredBranches;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
@@ -184,26 +127,55 @@ class _BranchesScreenState extends State<BranchesScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: branches.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      itemCount: branches.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final branch = branches[index];
-                        return BranchCard(
-                          branch: branch,
-                          onTap: () => _openBranchDetails(branch),
-                          onEdit: () => _openEditBranch(branch),
-                          onDelete: () => _deleteBranch(branch),
+              child: StreamBuilder<List<BranchModel>>(
+                stream: _repository.watchBranches(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return _buildErrorState();
+                  }
+
+                  final branches = _filterBranches(snapshot.data ?? const []);
+                  return branches.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.separated(
+                          itemCount: branches.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final branch = branches[index];
+                            return BranchCard(
+                              branch: branch,
+                              onTap: () => _openBranchDetails(branch),
+                              onEdit: () => _openEditBranch(branch),
+                              onDelete: () => _deleteBranch(branch),
+                            );
+                          },
                         );
-                      },
-                    ),
+                },
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<BranchModel> _filterBranches(List<BranchModel> branches) {
+    if (_searchQuery.trim().isEmpty) {
+      return branches;
+    }
+
+    final query = _searchQuery.toLowerCase();
+    return branches.where((branch) {
+      return branch.name.toLowerCase().contains(query) ||
+          branch.city.toLowerCase().contains(query) ||
+          branch.address.toLowerCase().contains(query);
+    }).toList(growable: false);
   }
 
   Widget _buildEmptyState() {
@@ -226,18 +198,29 @@ class _BranchesScreenState extends State<BranchesScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No branches added yet',
+            'No data available',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
-            'Create your first branch to start managing locations.',
+            'Branch records will appear here once data is available.',
             textAlign: TextAlign.center,
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.neutral500,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Text(
+        'Unable to load branches.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
       ),
     );
   }

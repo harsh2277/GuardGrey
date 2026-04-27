@@ -2,72 +2,36 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../modules/admin/data/admin_dummy_data.dart';
+import '../../modules/admin/models/branch_model.dart';
 import '../../modules/admin/models/client_model.dart';
 import '../../modules/admin/models/site_model.dart';
+import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/site_assignment_tab.dart';
 import '../../modules/admin/widgets/site_selector_bottom_sheet.dart';
 import '../../widgets/action_bottom_sheet.dart';
 import 'add_client_screen.dart';
 
-class ClientDetailResult {
-  const ClientDetailResult({
-    this.client,
-    this.siteIds = const <String>[],
-    this.deleted = false,
-  });
-
-  final ClientModel? client;
-  final List<String> siteIds;
-  final bool deleted;
-}
-
 class ClientDetailScreen extends StatefulWidget {
   const ClientDetailScreen({
     super.key,
     required this.client,
-    required this.allSites,
   });
 
   final ClientModel client;
-  final List<SiteModel> allSites;
 
   @override
   State<ClientDetailScreen> createState() => _ClientDetailScreenState();
 }
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
-  late ClientModel _client;
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   late final TextEditingController _searchController;
-  late List<SiteModel> _allSites;
   String _searchQuery = '';
-
-  String get _branchName =>
-      AdminDummyData.getBranchById(_client.branchId)?.name ??
-      'Unassigned Branch';
-
-  List<SiteModel> get _assignedSites => _allSites
-      .where((site) => site.clientId == _client.id)
-      .toList(growable: false);
-
-  List<SiteModel> get _filteredSites {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return _assignedSites;
-    }
-
-    return _assignedSites.where((site) {
-      return site.name.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList(growable: false);
-  }
 
   @override
   void initState() {
     super.initState();
-    _client = widget.client;
     _searchController = TextEditingController();
-    _allSites = widget.allSites.toList(growable: true);
   }
 
   @override
@@ -76,37 +40,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _openEditClient() async {
-    final updated = await Navigator.push<ClientEditorResult>(
+  Future<void> _openEditClient(ClientModel client) async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => AddClientScreen(
-          client: _client,
-          allSites: _allSites,
-          initialSiteIds: _assignedSites.map((site) => site.id).toList(),
-        ),
-      ),
-    );
-
-    if (updated == null) return;
-
-    setState(() {
-      _client = updated.client;
-      _applySiteAssignments(updated.siteIds);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Client updated successfully.',
-          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-        ),
-        backgroundColor: AppColors.success,
-      ),
+      MaterialPageRoute(builder: (_) => AddClientScreen(client: client)),
     );
   }
 
-  Future<void> _deleteClient() async {
+  Future<void> _deleteClient(ClientModel client) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -142,178 +83,250 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       },
     );
 
-    if (confirmed == true && mounted) {
-      Navigator.pop(context, const ClientDetailResult(deleted: true));
+    if (confirmed != true) {
+      return;
     }
+
+    await _repository.deleteClient(client.id);
+    if (!mounted) {
+      return;
+    }
+    Navigator.pop(context);
   }
 
-  Future<void> _openActionsSheet() {
+  Future<void> _openActionsSheet(ClientModel client) {
     return ActionBottomSheet.show(
       context,
       items: [
         ActionBottomSheetItem(
           icon: Icons.edit_outlined,
           label: 'Edit Client',
-          onTap: _openEditClient,
+          onTap: () => _openEditClient(client),
         ),
         ActionBottomSheetItem(
           icon: Icons.delete_outline_rounded,
           label: 'Delete Client',
           textColor: AppColors.error,
           iconColor: AppColors.error,
-          onTap: _deleteClient,
+          onTap: () => _deleteClient(client),
         ),
       ],
     );
   }
 
-  Future<void> _openSiteSelector() async {
+  Future<void> _openSiteSelector({
+    required ClientModel client,
+    required List<SiteModel> allSites,
+    required List<SiteModel> assignedSites,
+  }) async {
+    final branchSites = allSites
+        .where((site) => site.branchId == client.branchId || site.clientId == client.id)
+        .toList(growable: false);
+
     final selectedSites = await SiteSelectorBottomSheet.show(
       context,
-      allSites: _branchSites,
-      initiallySelectedIds: _assignedSites.map((site) => site.id).toList(),
+      allSites: branchSites,
+      initiallySelectedIds:
+          assignedSites.map((site) => site.id).toList(growable: false),
     );
 
-    if (selectedSites == null) return;
+    if (selectedSites == null) {
+      return;
+    }
 
-    setState(() {
-      _applySiteAssignments(
-        selectedSites.map((site) => site.id).toList(growable: false),
-      );
-    });
-  }
-
-  void _removeAssignedSite(String siteId) {
-    setState(() {
-      _applySiteAssignments(
-        _assignedSites
-            .where((site) => site.id != siteId)
-            .map((site) => site.id)
-            .toList(growable: false),
-      );
-    });
-  }
-
-  List<SiteModel> get _branchSites => _allSites
-      .where((site) => site.branchId == _client.branchId || site.clientId == _client.id)
-      .toList(growable: false);
-
-  void _applySiteAssignments(List<String> selectedSiteIds) {
-    final selectedIdSet = selectedSiteIds.toSet();
-    _allSites = _allSites.map((site) {
-      if (selectedIdSet.contains(site.id)) {
-        return site.copyWith(clientId: _client.id);
-      }
-
-      if (site.clientId == _client.id) {
-        return site.copyWith(clientId: '');
-      }
-
-      return site;
-    }).toList(growable: true);
-  }
-
-  Future<bool> _handleBackNavigation() async {
-    Navigator.pop(
-      context,
-      ClientDetailResult(
-        client: _client,
-        siteIds: _assignedSites.map((site) => site.id).toList(growable: false),
+    await _repository.saveClient(
+      client.copyWith(
+        siteIds: selectedSites.map((site) => site.id).toList(growable: false),
       ),
     );
-    return false;
+  }
+
+  Future<void> _removeAssignedSite({
+    required ClientModel client,
+    required List<SiteModel> assignedSites,
+    required String siteId,
+  }) {
+    final updatedIds = assignedSites
+        .where((site) => site.id != siteId)
+        .map((site) => site.id)
+        .toList(growable: false);
+    return _repository.saveClient(client.copyWith(siteIds: updatedIds));
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _handleBackNavigation,
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: AppColors.backgroundLight,
-          appBar: AppBar(
-            backgroundColor: AppColors.neutral50,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            title: Text(
-              'Client Details',
-              style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _openActionsSheet,
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.neutral100,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.neutral200),
-                      ),
-                      child: const Icon(
-                        Icons.more_vert_rounded,
-                        color: AppColors.neutral700,
-                        size: 20,
-                      ),
-                    ),
-                  ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        appBar: AppBar(
+          backgroundColor: AppColors.neutral50,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: Text(
+            'Client Details',
+            style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(68),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.neutral100,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.neutral200),
                 ),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(68),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.neutral100,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.neutral200),
+                child: TabBar(
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: AppColors.primary700,
+                  unselectedLabelColor: AppColors.neutral500,
+                  labelStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: TabBar(
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: AppColors.primary700,
-                    unselectedLabelColor: AppColors.neutral500,
-                    labelStyle: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    indicator: BoxDecoration(
-                      color: AppColors.primary100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    overlayColor: WidgetStateProperty.all(Colors.transparent),
-                    tabs: const [
-                      Tab(text: 'Info'),
-                      Tab(text: 'Sites'),
-                    ],
+                  unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
+                  indicator: BoxDecoration(
+                    color: AppColors.primary100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  tabs: const [
+                    Tab(text: 'Info'),
+                    Tab(text: 'Sites'),
+                  ],
                 ),
               ),
             ),
           ),
-          body: TabBarView(
-            children: [
-              _buildInfoTab(),
-              _buildSitesTab(),
-            ],
-          ),
+        ),
+        body: StreamBuilder<ClientModel?>(
+          stream: _repository.watchClient(widget.client.id),
+          builder: (context, clientSnapshot) {
+            if (clientSnapshot.connectionState == ConnectionState.waiting &&
+                !clientSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final client = clientSnapshot.data;
+            if (client == null) {
+              return _buildUnavailableState('Client no longer exists.');
+            }
+
+            return StreamBuilder<List<SiteModel>>(
+              stream: _repository.watchSites(),
+              builder: (context, sitesSnapshot) {
+                final allSites = sitesSnapshot.data ?? const <SiteModel>[];
+                final assignedSites = allSites
+                    .where((site) => site.clientId == client.id)
+                    .toList(growable: false);
+                final filteredSites = _filterSites(assignedSites);
+
+                return StreamBuilder<List<BranchModel>>(
+                  stream: _repository.watchBranches(),
+                  builder: (context, branchesSnapshot) {
+                    final branches =
+                        branchesSnapshot.data ?? const <BranchModel>[];
+                    final branchName = _branchName(branches, client.branchId);
+
+                    return Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 20, top: 12),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => _openActionsSheet(client),
+                                borderRadius: BorderRadius.circular(999),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.neutral100,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppColors.neutral200),
+                                  ),
+                                  child: const Icon(
+                                    Icons.more_vert_rounded,
+                                    color: AppColors.neutral700,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _buildInfoTab(client, branchName),
+                              SiteAssignmentTab(
+                                searchController: _searchController,
+                                onSearchChanged: (value) {
+                                  setState(() {
+                                    _searchQuery = value;
+                                  });
+                                },
+                                onAddPressed: () => _openSiteSelector(
+                                  client: client,
+                                  allSites: allSites,
+                                  assignedSites: assignedSites,
+                                ),
+                                addButtonLabel: 'Add Site',
+                                sites: filteredSites,
+                                countLabel:
+                                    '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
+                                emptyMessage: _searchQuery.trim().isEmpty
+                                    ? 'No sites assigned to this client yet.'
+                                    : 'No assigned sites match your search.',
+                                onRemoveSite: (siteId) => _removeAssignedSite(
+                                  client: client,
+                                  assignedSites: assignedSites,
+                                  siteId: siteId,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildInfoTab() {
+  List<SiteModel> _filterSites(List<SiteModel> sites) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return sites;
+    }
+
+    return sites.where((site) {
+      return site.name.toLowerCase().contains(query) ||
+          site.location.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  String _branchName(List<BranchModel> branches, String branchId) {
+    for (final branch in branches) {
+      if (branch.id == branchId) {
+        return branch.name;
+      }
+    }
+    return 'Unassigned Branch';
+  }
+
+  Widget _buildInfoTab(ClientModel client, String branchName) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
@@ -328,7 +341,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _client.name,
+                client.name,
                 style: AppTextStyles.headingSmall.copyWith(
                   color: AppColors.neutral900,
                   fontWeight: FontWeight.w700,
@@ -336,7 +349,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _client.email,
+                client.email,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.primary700,
                   fontWeight: FontWeight.w600,
@@ -344,7 +357,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                _client.phone,
+                client.phone,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.neutral700,
                   fontWeight: FontWeight.w600,
@@ -352,7 +365,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                _branchName,
+                branchName,
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.neutral500,
                   fontWeight: FontWeight.w700,
@@ -375,39 +388,17 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
           ),
           child: Column(
             children: [
-              _buildInfoRow('Name', _client.name),
+              _buildInfoRow('Name', client.name),
               _buildDivider(),
-              _buildInfoRow('Email', _client.email),
+              _buildInfoRow('Email', client.email),
               _buildDivider(),
-              _buildInfoRow('Mobile', _client.phone),
+              _buildInfoRow('Mobile', client.phone),
               _buildDivider(),
-              _buildInfoRow('Branch', _branchName),
+              _buildInfoRow('Branch', branchName),
             ],
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSitesTab() {
-    final sites = _filteredSites;
-
-    return SiteAssignmentTab(
-      searchController: _searchController,
-      onSearchChanged: (value) {
-        setState(() {
-          _searchQuery = value;
-        });
-      },
-      onAddPressed: _openSiteSelector,
-      addButtonLabel: 'Add Site',
-      sites: sites,
-      countLabel:
-          '${_assignedSites.length} ${_assignedSites.length == 1 ? 'site' : 'sites'} assigned',
-      emptyMessage: _searchQuery.trim().isEmpty
-          ? 'No sites assigned to this client yet.'
-          : 'No assigned sites match your search.',
-      onRemoveSite: _removeAssignedSite,
     );
   }
 
@@ -448,6 +439,17 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       height: 1,
       thickness: 1,
       color: AppColors.neutral200,
+    );
+  }
+
+  Widget _buildUnavailableState(String message) {
+    return Center(
+      child: Text(
+        message,
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
+      ),
     );
   }
 }

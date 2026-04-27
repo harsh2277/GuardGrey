@@ -1,11 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../routes/app_routes.dart';
 import '../../../widgets/list_tile.dart';
 import '../../../widgets/section_header.dart';
 import 'edit_profile_screen.dart';
-import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,6 +19,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _fullName = 'Admin User';
   String _email = 'admin@guardgrey.com';
   String _phone = '+91 98765 11001';
+  bool _isLoggingOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrateProfileFromAuth();
+  }
 
   void _showPlaceholderMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -31,12 +39,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _logout() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+  void _hydrateProfileFromAuth() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    final email = user.email?.trim();
+    final displayName = user.displayName?.trim();
+
+    setState(() {
+      _email = (email?.isNotEmpty ?? false) ? email! : _email;
+      _fullName = (displayName?.isNotEmpty ?? false)
+          ? displayName!
+          : _deriveNameFromEmail(_email);
+    });
+  }
+
+  Future<void> _logout() async {
+    if (_isLoggingOut) {
+      return;
+    }
+
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) {
+        return;
+      }
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.authGate,
+        (_) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      print('Logout error: ${error.code} ${error.message}');
+      if (!mounted) {
+        return;
+      }
+      _showPlaceholderMessage('Unable to logout right now.');
+    } catch (error) {
+      print('Logout error: $error');
+      if (!mounted) {
+        return;
+      }
+      _showPlaceholderMessage('Unable to logout right now.');
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoggingOut = false;
+      });
+    }
   }
 
   Future<void> _openEditProfile() async {
@@ -70,6 +128,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _deriveNameFromEmail(String email) {
+    final localPart = email.split('@').first.trim();
+    if (localPart.isEmpty) {
+      return 'Admin User';
+    }
+
+    final words = localPart
+        .split(RegExp(r'[._-]+'))
+        .where((part) => part.trim().isNotEmpty)
+        .map(
+          (part) => '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .toList(growable: false);
+
+    return words.isEmpty ? 'Admin User' : words.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,7 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   radius: 36,
                   backgroundColor: AppColors.primary50,
                   child: Text(
-                    'A',
+                    _fullName.isEmpty ? 'A' : _fullName.substring(0, 1),
                     style: AppTextStyles.headingSmall.copyWith(
                       color: AppColors.primary600,
                       fontWeight: FontWeight.w700,
@@ -168,7 +243,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _logout,
+              onPressed: _isLoggingOut ? null : _logout,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
@@ -177,7 +252,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(18),
                 ),
               ),
-              child: const Text('Logout'),
+              child: _isLoggingOut
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Logout'),
             ),
           ),
         ],

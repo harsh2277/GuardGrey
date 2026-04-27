@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../widgets/location_input_field.dart';
-import '../data/admin_dummy_data.dart';
 import '../models/branch_model.dart';
 import '../models/location_picker_result.dart';
 import '../models/site_model.dart';
+import '../services/firestore_admin_repository.dart';
 import '../widgets/selected_site_chip.dart';
 import '../widgets/site_selector_bottom_sheet.dart';
 import 'location_picker_screen.dart';
 
 class AddBranchScreen extends StatefulWidget {
-  final BranchModel? branch;
-
   const AddBranchScreen({
     super.key,
     this.branch,
   });
+
+  final BranchModel? branch;
 
   bool get isEditing => branch != null;
 
@@ -26,10 +27,12 @@ class AddBranchScreen extends StatefulWidget {
 
 class _AddBranchScreenState extends State<AddBranchScreen> {
   final _formKey = GlobalKey<FormState>();
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   late final TextEditingController _branchNameController;
   late final TextEditingController _cityController;
   late final TextEditingController _addressController;
-  late List<SiteModel> _selectedSites;
+  late final Set<String> _selectedSiteIds;
+  late final Future<List<SiteModel>> _sitesFuture;
   double? _selectedLatitude;
   double? _selectedLongitude;
 
@@ -42,8 +45,8 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     _addressController = TextEditingController(text: branch?.address ?? '');
     _selectedLatitude = branch?.latitude;
     _selectedLongitude = branch?.longitude;
-    _selectedSites =
-        AdminDummyData.getSitesByIds(branch?.siteIds ?? const <String>[]);
+    _selectedSiteIds = (branch?.siteIds ?? const <String>[]).toSet();
+    _sitesFuture = _repository.fetchSites();
   }
 
   @override
@@ -54,16 +57,18 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     super.dispose();
   }
 
-  Future<void> _openSiteSelector() async {
+  Future<void> _openSiteSelector(List<SiteModel> allSites) async {
     final selectedSites = await SiteSelectorBottomSheet.show(
       context,
-      allSites: AdminDummyData.sites,
-      initiallySelectedIds: _selectedSites.map((site) => site.id).toList(),
+      allSites: allSites,
+      initiallySelectedIds: _selectedSiteIds.toList(growable: false),
     );
 
     if (selectedSites != null) {
       setState(() {
-        _selectedSites = selectedSites;
+        _selectedSiteIds
+          ..clear()
+          ..addAll(selectedSites.map((site) => site.id));
       });
     }
   }
@@ -80,7 +85,9 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
       ),
     );
 
-    if (result == null) return;
+    if (result == null) {
+      return;
+    }
 
     setState(() {
       _addressController.text = result.address;
@@ -90,33 +97,55 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     });
   }
 
-  void _saveBranch() {
+  Future<void> _saveBranch() async {
     final valid = _formKey.currentState?.validate() ?? false;
-    if (!valid) return;
+    if (!valid) {
+      return;
+    }
 
     final branch = BranchModel(
       id: widget.branch?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: _branchNameController.text.trim(),
       city: _cityController.text.trim(),
       address: _addressController.text.trim(),
-      siteIds: _selectedSites.map((site) => site.id).toList(growable: false),
+      siteIds: _selectedSiteIds.toList(growable: false),
       latitude: _selectedLatitude,
       longitude: _selectedLongitude,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          widget.isEditing
-              ? 'Branch updated successfully.'
-              : 'Branch created successfully.',
-          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-        ),
-        backgroundColor: AppColors.success,
-      ),
-    );
+    try {
+      await _repository.saveBranch(branch);
+      if (!mounted) {
+        return;
+      }
 
-    Navigator.pop(context, branch);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isEditing
+                ? 'Branch updated successfully.'
+                : 'Branch created successfully.',
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to save branch. Please try again.',
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -129,191 +158,206 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFieldLabel('Branch Name'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _branchNameController,
-                hintText: 'Enter branch name',
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Branch name is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 18),
-              _buildFieldLabel('City / Location'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _cityController,
-                hintText: 'Enter city or location',
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'City / Location is required';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 18),
-              _buildFieldLabel('Location'),
-              const SizedBox(height: 8),
-              FormField<String>(
-                initialValue: _addressController.text,
-                validator: (value) {
-                  if (_addressController.text.trim().isEmpty) {
-                    return 'Location is required';
-                  }
-                  return null;
-                },
-                builder: (field) {
-                  return LocationInputField(
-                    address: _addressController.text,
-                    errorText: field.errorText,
-                    onTap: () async {
-                      await _openLocationPicker();
-                      if (mounted) {
-                        field.didChange(_addressController.text);
+      body: FutureBuilder<List<SiteModel>>(
+        future: _sitesFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return _buildErrorState();
+          }
+
+          final allSites = snapshot.data ?? const <SiteModel>[];
+          final selectedSites = allSites
+              .where((site) => _selectedSiteIds.contains(site.id))
+              .toList(growable: false);
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFieldLabel('Branch Name'),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    controller: _branchNameController,
+                    hintText: 'Enter branch name',
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Branch name is required';
                       }
+                      return null;
                     },
-                  );
-                },
-              ),
-              if (_selectedLatitude != null && _selectedLongitude != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.neutral200),
+                  const SizedBox(height: 18),
+                  _buildFieldLabel('City / Location'),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    controller: _cityController,
+                    hintText: 'Enter city or location',
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'City / Location is required';
+                      }
+                      return null;
+                    },
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Lat / Lng',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.neutral500,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  const SizedBox(height: 18),
+                  _buildFieldLabel('Location'),
+                  const SizedBox(height: 8),
+                  FormField<String>(
+                    initialValue: _addressController.text,
+                    validator: (value) {
+                      if (_addressController.text.trim().isEmpty) {
+                        return 'Location is required';
+                      }
+                      return null;
+                    },
+                    builder: (field) {
+                      return LocationInputField(
+                        address: _addressController.text,
+                        errorText: field.errorText,
+                        onTap: () async {
+                          await _openLocationPicker();
+                          if (mounted) {
+                            field.didChange(_addressController.text);
+                          }
+                        },
+                      );
+                    },
+                  ),
+                  if (_selectedLatitude != null && _selectedLongitude != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${_selectedLatitude!.toStringAsFixed(6)}, ${_selectedLongitude!.toStringAsFixed(6)}',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.neutral800,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.neutral200),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 22),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.neutral200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lat / Lng',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.neutral500,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_selectedLatitude!.toStringAsFixed(6)}, ${_selectedLongitude!.toStringAsFixed(6)}',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.neutral800,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.neutral200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Assigned Sites',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.neutral900,
+                        Row(
+                          children: [
+                            Text(
+                              'Assigned Sites',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.neutral900,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${selectedSites.length} selected',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.neutral500,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _openSiteSelector(allSites),
+                            icon: const Icon(Icons.add_business_outlined, size: 18),
+                            label: const Text('Assign Sites'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
                           ),
                         ),
-                        const Spacer(),
-                        Text(
-                          '${_selectedSites.length} selected',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.neutral500,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(height: 16),
+                        if (selectedSites.isEmpty)
+                          Text(
+                            'No sites assigned yet.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.neutral500,
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: selectedSites
+                                .map(
+                                  (site) => SelectedSiteChip(
+                                    site: site,
+                                    onRemove: () {
+                                      setState(() {
+                                        _selectedSiteIds.remove(site.id);
+                                      });
+                                    },
+                                  ),
+                                )
+                                .toList(growable: false),
                           ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _openSiteSelector,
-                        icon: const Icon(Icons.add_business_outlined, size: 18),
-                        label: const Text('Assign Sites'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 52),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveBranch,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 54),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_selectedSites.isEmpty)
-                      Text(
-                        'No sites assigned yet.',
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: AppColors.neutral500,
-                        ),
-                      )
-                    else
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: _selectedSites
-                            .map(
-                              (site) => SelectedSiteChip(
-                                site: site,
-                                onRemove: () {
-                                  setState(() {
-                                    _selectedSites = _selectedSites
-                                        .where((item) => item.id != site.id)
-                                        .toList(growable: false);
-                                  });
-                                },
-                              ),
-                            )
-                            .toList(),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveBranch,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      child: const Text('Save Branch'),
                     ),
                   ),
-                  child: const Text('Save Branch'),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -375,11 +419,20 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     if (parts.isEmpty) {
       return '';
     }
-
     if (parts.length >= 2) {
       return parts[1];
     }
-
     return parts.first;
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Text(
+        'Unable to load branch form data.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
+      ),
+    );
   }
 }

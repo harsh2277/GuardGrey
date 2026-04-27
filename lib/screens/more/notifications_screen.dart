@@ -35,16 +35,21 @@ class NotificationsScreen extends StatelessWidget {
       ),
       body: StreamBuilder<List<AppNotification>>(
         stream: NotificationModule.repository.watchNotifications(),
-        builder: (context, snapshot) {
-          final notifications = snapshot.data ?? const <AppNotification>[];
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? const <AppNotification>[];
 
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              notifications.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            notifications.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          if (notifications.isEmpty) {
-            return _buildEmptyState();
+        if (snapshot.hasError) {
+          print('Notifications error: ${snapshot.error}');
+          return _buildErrorState();
+        }
+
+        if (notifications.isEmpty) {
+          return _buildEmptyState();
           }
 
           return ListView.separated(
@@ -171,10 +176,29 @@ class NotificationsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No notifications yet',
+              'No data available',
               style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Notifications will appear here once data is available.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.neutral500,
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Text(
+        'Unable to load notifications.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
         ),
       ),
     );

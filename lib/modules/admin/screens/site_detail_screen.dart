@@ -2,67 +2,37 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../data/admin_dummy_data.dart';
+import '../models/branch_model.dart';
+import '../models/client_model.dart';
 import '../models/manager_model.dart';
 import '../models/site_model.dart';
 import '../models/visit_model.dart';
+import '../services/firestore_admin_repository.dart';
 import '../widgets/admin_search_bar.dart';
 import '../widgets/manager_card.dart';
 import '../widgets/visit_table.dart';
 import 'add_site_screen.dart';
 
-class SiteDetailResult {
-  final SiteModel? site;
-  final bool deleted;
-
-  const SiteDetailResult({
-    this.site,
-    this.deleted = false,
-  });
-}
-
 class SiteDetailScreen extends StatefulWidget {
-  final SiteModel site;
-
   const SiteDetailScreen({
     super.key,
     required this.site,
   });
+
+  final SiteModel site;
 
   @override
   State<SiteDetailScreen> createState() => _SiteDetailScreenState();
 }
 
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
-  late SiteModel _site;
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   late final TextEditingController _searchController;
   String _searchQuery = '';
-
-  String get _clientName => AdminDummyData.getClientName(_site.clientId);
-  String get _branchName => AdminDummyData.getBranchName(_site.branchId);
-  ManagerModel? get _manager => AdminDummyData.getManagerById(_site.managerId);
-
-  List<VisitModel> get _visits {
-    final visits = AdminDummyData.getVisitsBySiteId(_site.id);
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return visits;
-    }
-
-    return visits.where((visit) {
-      return visit.managerName.toLowerCase().contains(query) ||
-          visit.date.toLowerCase().contains(query) ||
-          visit.day.toLowerCase().contains(query) ||
-          visit.time.toLowerCase().contains(query) ||
-          visit.status.toLowerCase().contains(query) ||
-          visit.notes.toLowerCase().contains(query);
-    }).toList(growable: false);
-  }
 
   @override
   void initState() {
     super.initState();
-    _site = widget.site;
     _searchController = TextEditingController();
   }
 
@@ -72,31 +42,14 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _openEditSite() async {
-    final updated = await Navigator.push<SiteModel>(
+  Future<void> _openEditSite(SiteModel site) async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (_) => AddSiteScreen(site: _site)),
+      MaterialPageRoute(builder: (_) => AddSiteScreen(site: site)),
     );
-
-    if (updated != null) {
-      setState(() {
-        _site = updated;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Site updated successfully.',
-              style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-            ),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    }
   }
 
-  Future<void> _deleteSite() async {
+  Future<void> _deleteSite(SiteModel site) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -132,12 +85,18 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       },
     );
 
-    if (confirmed == true && mounted) {
-      Navigator.pop(context, const SiteDetailResult(deleted: true));
+    if (confirmed != true) {
+      return;
     }
+
+    await _repository.deleteSite(site.id);
+    if (!mounted) {
+      return;
+    }
+    Navigator.pop(context);
   }
 
-  Future<void> _openActionsSheet() async {
+  Future<void> _openActionsSheet(SiteModel site) async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -162,7 +121,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   label: 'Edit Site',
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _openEditSite();
+                    _openEditSite(site);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -173,7 +132,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   iconColor: AppColors.error,
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _deleteSite();
+                    _deleteSite(site);
                   },
                 ),
               ],
@@ -184,126 +143,233 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     );
   }
 
-  Future<bool> _handleBackNavigation() async {
-    Navigator.pop(context, SiteDetailResult(site: _site));
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final visits = _visits;
-
-    return WillPopScope(
-      onWillPop: _handleBackNavigation,
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: AppColors.backgroundLight,
-          appBar: AppBar(
-            backgroundColor: AppColors.neutral50,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            title: Text(
-              'Site Details',
-              style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _openActionsSheet,
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.neutral100,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.neutral200),
-                      ),
-                      child: const Icon(
-                        Icons.more_vert_rounded,
-                        color: AppColors.neutral700,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(68),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.neutral100,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.neutral200),
-                  ),
-                  child: TabBar(
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: AppColors.primary700,
-                    unselectedLabelColor: AppColors.neutral500,
-                    labelStyle: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    indicator: BoxDecoration(
-                      color: AppColors.primary100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    overlayColor:
-                        WidgetStateProperty.all(Colors.transparent),
-                    tabs: const [
-                      Tab(text: 'Info'),
-                      Tab(text: 'Visit History'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        appBar: AppBar(
+          backgroundColor: AppColors.neutral50,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: Text(
+            'Site Details',
+            style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
-          body: TabBarView(
-            children: [
-              _buildInfoTab(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                child: Column(
-                  children: [
-                    AdminSearchBar(
-                      height: 50,
-                      hintText: 'Search visits...',
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: visits.isEmpty
-                          ? _buildVisitsEmptyState()
-                          : VisitTable(visits: visits),
-                    ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(68),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.neutral100,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.neutral200),
+                ),
+                child: TabBar(
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: AppColors.primary700,
+                  unselectedLabelColor: AppColors.neutral500,
+                  labelStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  indicator: BoxDecoration(
+                    color: AppColors.primary100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  tabs: const [
+                    Tab(text: 'Info'),
+                    Tab(text: 'Visit History'),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
+        ),
+        body: StreamBuilder<SiteModel?>(
+          stream: _repository.watchSite(widget.site.id),
+          builder: (context, siteSnapshot) {
+            if (siteSnapshot.connectionState == ConnectionState.waiting &&
+                !siteSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final site = siteSnapshot.data;
+            if (site == null) {
+              return _buildUnavailableState('Site no longer exists.');
+            }
+
+            return StreamBuilder<List<ClientModel>>(
+              stream: _repository.watchClients(),
+              builder: (context, clientsSnapshot) {
+                final clients = clientsSnapshot.data ?? const <ClientModel>[];
+                return StreamBuilder<List<BranchModel>>(
+                  stream: _repository.watchBranches(),
+                  builder: (context, branchesSnapshot) {
+                    final branches =
+                        branchesSnapshot.data ?? const <BranchModel>[];
+                    return StreamBuilder<List<ManagerModel>>(
+                      stream: _repository.watchManagers(),
+                      builder: (context, managersSnapshot) {
+                        final managers =
+                            managersSnapshot.data ?? const <ManagerModel>[];
+                        final manager = _managerById(managers, site.managerId);
+                        final clientName = _clientName(clients, site.clientId);
+                        final branchName = _branchName(branches, site.branchId);
+
+                        return StreamBuilder<List<VisitModel>>(
+                          stream: _repository.watchSiteVisits(site.id),
+                          builder: (context, visitsSnapshot) {
+                            final visits =
+                                _filterVisits(visitsSnapshot.data ?? const []);
+
+                            return Column(
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      right: 20,
+                                      top: 12,
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _openActionsSheet(site),
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                        child: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.neutral100,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: AppColors.neutral200,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.more_vert_rounded,
+                                            color: AppColors.neutral700,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TabBarView(
+                                    children: [
+                                      _buildInfoTab(
+                                        site: site,
+                                        clientName: clientName,
+                                        branchName: branchName,
+                                        manager: manager,
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          20,
+                                          16,
+                                          20,
+                                          32,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            AdminSearchBar(
+                                              height: 50,
+                                              hintText: 'Search visits...',
+                                              controller: _searchController,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  _searchQuery = value;
+                                                });
+                                              },
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Expanded(
+                                              child: visits.isEmpty
+                                                  ? _buildVisitsEmptyState()
+                                                  : VisitTable(visits: visits),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildInfoTab() {
+  List<VisitModel> _filterVisits(List<VisitModel> visits) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return visits;
+    }
+
+    return visits.where((visit) {
+      return visit.managerName.toLowerCase().contains(query) ||
+          visit.date.toLowerCase().contains(query) ||
+          visit.day.toLowerCase().contains(query) ||
+          visit.time.toLowerCase().contains(query) ||
+          visit.status.toLowerCase().contains(query) ||
+          visit.notes.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  String _clientName(List<ClientModel> clients, String clientId) {
+    for (final client in clients) {
+      if (client.id == clientId) {
+        return client.name;
+      }
+    }
+    return 'Unassigned Client';
+  }
+
+  String _branchName(List<BranchModel> branches, String branchId) {
+    for (final branch in branches) {
+      if (branch.id == branchId) {
+        return branch.name;
+      }
+    }
+    return 'Unassigned Branch';
+  }
+
+  ManagerModel? _managerById(List<ManagerModel> managers, String managerId) {
+    for (final manager in managers) {
+      if (manager.id == managerId) {
+        return manager;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildInfoTab({
+    required SiteModel site,
+    required String clientName,
+    required String branchName,
+    required ManagerModel? manager,
+  }) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
@@ -318,7 +384,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _site.name,
+                site.name,
                 style: AppTextStyles.headingSmall.copyWith(
                   color: AppColors.neutral900,
                   fontWeight: FontWeight.w700,
@@ -326,7 +392,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                _clientName,
+                clientName,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.primary700,
                   fontWeight: FontWeight.w600,
@@ -334,7 +400,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                _branchName,
+                branchName,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.neutral700,
                   fontWeight: FontWeight.w600,
@@ -342,14 +408,14 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _site.address.trim().isEmpty ? _site.location : _site.address,
+                site.address.trim().isEmpty ? site.location : site.address,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.neutral700,
                 ),
               ),
               const SizedBox(height: 14),
               Text(
-                'Created ${_site.createdDate}',
+                site.createdDate.isEmpty ? '' : 'Created ${site.createdDate}',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: AppColors.neutral500,
                   fontWeight: FontWeight.w600,
@@ -366,8 +432,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        if (_manager != null)
-          ManagerCard(manager: _manager!)
+        if (manager != null)
+          ManagerCard(manager: manager)
         else
           _buildFallbackCard('No manager assigned'),
         const SizedBox(height: 20),
@@ -386,27 +452,27 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           ),
           child: Column(
             children: [
-              _buildInfoRow('Site Name', _site.name),
+              _buildInfoRow('Site Name', site.name),
               _buildDivider(),
-              _buildInfoRow('Client', _clientName),
+              _buildInfoRow('Client', clientName),
               _buildDivider(),
-              _buildInfoRow('Branch', _branchName),
+              _buildInfoRow('Branch', branchName),
               _buildDivider(),
               _buildInfoRow(
                 'Address',
-                _site.address.trim().isEmpty ? _site.location : _site.address,
+                site.address.trim().isEmpty ? site.location : site.address,
               ),
               _buildDivider(),
               _buildInfoRow(
                 'Description',
-                _site.description.trim().isEmpty
+                site.description.trim().isEmpty
                     ? 'No description added'
-                    : _site.description,
+                    : site.description,
               ),
               _buildDivider(),
-              _buildInfoRow('Created Date', _site.createdDate),
+              _buildInfoRow('Created Date', site.createdDate),
               _buildDivider(),
-              _buildInfoRow('Last Updated', _site.lastUpdated),
+              _buildInfoRow('Last Updated', site.lastUpdated),
             ],
           ),
         ),
@@ -513,6 +579,17 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Center(
       child: Text(
         'No visits available',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnavailableState(String message) {
+    return Center(
+      child: Text(
+        message,
         style: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.neutral500,
         ),

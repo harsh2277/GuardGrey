@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../data/admin_dummy_data.dart';
+import '../models/branch_model.dart';
+import '../models/client_model.dart';
+import '../models/manager_model.dart';
 import '../models/site_model.dart';
+import '../services/firestore_admin_repository.dart';
 import '../widgets/admin_search_bar.dart';
 import '../widgets/site_card.dart';
 import 'add_site_screen.dart';
@@ -17,78 +20,27 @@ class SitesScreen extends StatefulWidget {
 }
 
 class _SitesScreenState extends State<SitesScreen> {
-  late final List<SiteModel> _sites;
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   String _searchQuery = '';
 
-  List<SiteModel> get _filteredSites {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return _sites;
-    }
-
-    return _sites.where((site) {
-      final branchName = AdminDummyData.getBranchName(site.branchId);
-      final clientName = AdminDummyData.getClientName(site.clientId);
-      final managerName =
-          AdminDummyData.getManagerById(site.managerId)?.name ?? '';
-      return site.name.toLowerCase().contains(query) ||
-          branchName.toLowerCase().contains(query) ||
-          clientName.toLowerCase().contains(query) ||
-          managerName.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _sites = AdminDummyData.sites.toList(growable: true);
-  }
-
   Future<void> _openAddSite() async {
-    final created = await Navigator.push<SiteModel>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const AddSiteScreen()),
     );
-
-    if (created != null) {
-      setState(() {
-        _sites.insert(0, created);
-      });
-    }
   }
 
   Future<void> _openSiteDetail(SiteModel site) async {
-    final result = await Navigator.push<SiteDetailResult>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (_) => SiteDetailScreen(site: site),
       ),
     );
-
-    if (result == null) return;
-
-    if (result.deleted) {
-      setState(() {
-        _sites.removeWhere((item) => item.id == site.id);
-      });
-      return;
-    }
-
-    if (result.site != null) {
-      setState(() {
-        final index = _sites.indexWhere((item) => item.id == site.id);
-        if (index != -1) {
-          _sites[index] = result.site!;
-        }
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final sites = _filteredSites;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
@@ -134,25 +86,119 @@ class _SitesScreenState extends State<SitesScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: sites.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      itemCount: sites.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final site = sites[index];
-                        return SiteCard(
-                          site: site,
-                          branchName: AdminDummyData.getBranchName(site.branchId),
-                          onTap: () => _openSiteDetail(site),
-                        );
-                      },
-                    ),
+              child: StreamBuilder<List<SiteModel>>(
+                stream: _repository.watchSites(),
+                builder: (context, sitesSnapshot) {
+                  if (sitesSnapshot.connectionState == ConnectionState.waiting &&
+                      !sitesSnapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (sitesSnapshot.hasError) {
+                    return _buildErrorState();
+                  }
+
+                  return StreamBuilder<List<BranchModel>>(
+                    stream: _repository.watchBranches(),
+                    builder: (context, branchesSnapshot) {
+                      final branches = branchesSnapshot.data ?? const [];
+                      return StreamBuilder<List<ClientModel>>(
+                        stream: _repository.watchClients(),
+                        builder: (context, clientsSnapshot) {
+                          final clients = clientsSnapshot.data ?? const [];
+                          return StreamBuilder<List<ManagerModel>>(
+                            stream: _repository.watchManagers(),
+                            builder: (context, managersSnapshot) {
+                              final managers =
+                                  managersSnapshot.data ?? const [];
+                              final sites = _filterSites(
+                                sitesSnapshot.data ?? const [],
+                                branches: branches,
+                                clients: clients,
+                                managers: managers,
+                              );
+
+                              return sites.isEmpty
+                                  ? _buildEmptyState()
+                                  : ListView.separated(
+                                      itemCount: sites.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 12),
+                                      itemBuilder: (context, index) {
+                                        final site = sites[index];
+                                        return SiteCard(
+                                          site: site,
+                                          branchName: _branchName(
+                                            branches,
+                                            site.branchId,
+                                          ),
+                                          onTap: () => _openSiteDetail(site),
+                                        );
+                                      },
+                                    );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<SiteModel> _filterSites(
+    List<SiteModel> sites, {
+    required List<BranchModel> branches,
+    required List<ClientModel> clients,
+    required List<ManagerModel> managers,
+  }) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return sites;
+    }
+
+    return sites.where((site) {
+      final branchName = _branchName(branches, site.branchId);
+      final clientName = _clientName(clients, site.clientId);
+      final managerName = _managerName(managers, site.managerId);
+      return site.name.toLowerCase().contains(query) ||
+          branchName.toLowerCase().contains(query) ||
+          clientName.toLowerCase().contains(query) ||
+          managerName.toLowerCase().contains(query) ||
+          site.location.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  String _branchName(List<BranchModel> branches, String branchId) {
+    for (final branch in branches) {
+      if (branch.id == branchId) {
+        return branch.name;
+      }
+    }
+    return 'Unassigned Branch';
+  }
+
+  String _clientName(List<ClientModel> clients, String clientId) {
+    for (final client in clients) {
+      if (client.id == clientId) {
+        return client.name;
+      }
+    }
+    return 'Unassigned Client';
+  }
+
+  String _managerName(List<ManagerModel> managers, String managerId) {
+    for (final manager in managers) {
+      if (manager.id == managerId) {
+        return manager.name;
+      }
+    }
+    return '';
   }
 
   Widget _buildEmptyState() {
@@ -175,18 +221,29 @@ class _SitesScreenState extends State<SitesScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No sites available',
+            'No data available',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
-            'Create your first site to start tracking branch operations.',
+            'Site records will appear here once data is available.',
             textAlign: TextAlign.center,
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.neutral500,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Text(
+        'Unable to load sites.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
       ),
     );
   }

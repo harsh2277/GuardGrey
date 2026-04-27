@@ -2,23 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../modules/admin/data/admin_dummy_data.dart';
 import '../../modules/admin/models/manager_model.dart';
 import '../../modules/admin/models/site_model.dart';
+import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/site_assignment_tab.dart';
 import '../../modules/admin/widgets/site_selector_bottom_sheet.dart';
 import '../../widgets/action_bottom_sheet.dart';
 import 'add_manager_screen.dart';
-
-class ManagerDetailResult {
-  const ManagerDetailResult({
-    this.manager,
-    this.deleted = false,
-  });
-
-  final ManagerModel? manager;
-  final bool deleted;
-}
 
 class ManagerDetailScreen extends StatefulWidget {
   const ManagerDetailScreen({
@@ -33,29 +23,13 @@ class ManagerDetailScreen extends StatefulWidget {
 }
 
 class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
-  late ManagerModel _manager;
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   late final TextEditingController _searchController;
   String _searchQuery = '';
-
-  List<SiteModel> get _assignedSites =>
-      AdminDummyData.getSitesByIds(_manager.siteIds);
-
-  List<SiteModel> get _filteredSites {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return _assignedSites;
-    }
-
-    return _assignedSites.where((site) {
-      return site.name.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList(growable: false);
-  }
 
   @override
   void initState() {
     super.initState();
-    _manager = widget.manager;
     _searchController = TextEditingController();
   }
 
@@ -65,30 +39,14 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _openEditManager() async {
-    final updated = await Navigator.push<ManagerModel>(
+  Future<void> _openEditManager(ManagerModel manager) async {
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (_) => AddManagerScreen(manager: _manager)),
-    );
-
-    if (updated == null) return;
-
-    setState(() {
-      _manager = updated;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Manager updated successfully.',
-          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-        ),
-        backgroundColor: AppColors.success,
-      ),
+      MaterialPageRoute(builder: (_) => AddManagerScreen(manager: manager)),
     );
   }
 
-  Future<void> _deleteManager() async {
+  Future<void> _deleteManager(ManagerModel manager) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -124,153 +82,228 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
       },
     );
 
-    if (confirmed == true && mounted) {
-      Navigator.pop(context, const ManagerDetailResult(deleted: true));
+    if (confirmed != true) {
+      return;
     }
+
+    await _repository.deleteManager(manager.id);
+    if (!mounted) {
+      return;
+    }
+    Navigator.pop(context);
   }
 
-  Future<void> _openActionsSheet() {
+  Future<void> _openActionsSheet(ManagerModel manager) {
     return ActionBottomSheet.show(
       context,
       items: [
         ActionBottomSheetItem(
           icon: Icons.edit_outlined,
           label: 'Edit Manager',
-          onTap: _openEditManager,
+          onTap: () => _openEditManager(manager),
         ),
         ActionBottomSheetItem(
           icon: Icons.delete_outline_rounded,
           label: 'Delete Manager',
           textColor: AppColors.error,
           iconColor: AppColors.error,
-          onTap: _deleteManager,
+          onTap: () => _deleteManager(manager),
         ),
       ],
     );
   }
 
-  Future<void> _openSiteSelector() async {
+  Future<void> _openSiteSelector({
+    required ManagerModel manager,
+    required List<SiteModel> allSites,
+    required List<SiteModel> assignedSites,
+  }) async {
     final selectedSites = await SiteSelectorBottomSheet.show(
       context,
-      allSites: AdminDummyData.sites,
-      initiallySelectedIds: _assignedSites.map((site) => site.id).toList(),
+      allSites: allSites,
+      initiallySelectedIds:
+          assignedSites.map((site) => site.id).toList(growable: false),
     );
 
-    if (selectedSites == null) return;
+    if (selectedSites == null) {
+      return;
+    }
 
-    setState(() {
-      _manager = _manager.copyWith(
+    await _repository.saveManager(
+      manager.copyWith(
         siteIds: selectedSites.map((site) => site.id).toList(growable: false),
-      );
-    });
+      ),
+    );
   }
 
-  void _removeAssignedSite(String siteId) {
-    setState(() {
-      _manager = _manager.copyWith(
-        siteIds: _assignedSites
-            .where((site) => site.id != siteId)
-            .map((site) => site.id)
-            .toList(growable: false),
-      );
-    });
-  }
-
-  Future<bool> _handleBackNavigation() async {
-    Navigator.pop(context, ManagerDetailResult(manager: _manager));
-    return false;
+  Future<void> _removeAssignedSite({
+    required ManagerModel manager,
+    required List<SiteModel> assignedSites,
+    required String siteId,
+  }) {
+    final updatedIds = assignedSites
+        .where((site) => site.id != siteId)
+        .map((site) => site.id)
+        .toList(growable: false);
+    return _repository.saveManager(manager.copyWith(siteIds: updatedIds));
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _handleBackNavigation,
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          backgroundColor: AppColors.backgroundLight,
-          appBar: AppBar(
-            backgroundColor: AppColors.neutral50,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            title: Text(
-              'Manager Details',
-              style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _openActionsSheet,
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.neutral100,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.neutral200),
-                      ),
-                      child: const Icon(
-                        Icons.more_vert_rounded,
-                        color: AppColors.neutral700,
-                        size: 20,
-                      ),
-                    ),
-                  ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        appBar: AppBar(
+          backgroundColor: AppColors.neutral50,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: Text(
+            'Manager Details',
+            style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(68),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.neutral100,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.neutral200),
                 ),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(68),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.neutral100,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.neutral200),
+                child: TabBar(
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  labelColor: AppColors.primary700,
+                  unselectedLabelColor: AppColors.neutral500,
+                  labelStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: TabBar(
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    labelColor: AppColors.primary700,
-                    unselectedLabelColor: AppColors.neutral500,
-                    labelStyle: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    indicator: BoxDecoration(
-                      color: AppColors.primary100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    overlayColor: WidgetStateProperty.all(Colors.transparent),
-                    tabs: const [
-                      Tab(text: 'Info'),
-                      Tab(text: 'Sites'),
-                    ],
+                  unselectedLabelStyle: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
+                  indicator: BoxDecoration(
+                    color: AppColors.primary100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  tabs: const [
+                    Tab(text: 'Info'),
+                    Tab(text: 'Sites'),
+                  ],
                 ),
               ),
             ),
           ),
-          body: TabBarView(
-            children: [
-              _buildInfoTab(),
-              _buildSitesTab(),
-            ],
-          ),
+        ),
+        body: StreamBuilder<ManagerModel?>(
+          stream: _repository.watchManager(widget.manager.id),
+          builder: (context, managerSnapshot) {
+            if (managerSnapshot.connectionState == ConnectionState.waiting &&
+                !managerSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final manager = managerSnapshot.data;
+            if (manager == null) {
+              return _buildUnavailableState('Manager no longer exists.');
+            }
+
+            return StreamBuilder<List<SiteModel>>(
+              stream: _repository.watchSites(),
+              builder: (context, sitesSnapshot) {
+                final allSites = sitesSnapshot.data ?? const <SiteModel>[];
+                final assignedSites = allSites
+                    .where((site) => manager.siteIds.contains(site.id))
+                    .toList(growable: false);
+                final filteredSites = _filterSites(assignedSites);
+
+                return Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 20, top: 12),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _openActionsSheet(manager),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.neutral100,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.neutral200),
+                              ),
+                              child: const Icon(
+                                Icons.more_vert_rounded,
+                                color: AppColors.neutral700,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _buildInfoTab(manager),
+                          SiteAssignmentTab(
+                            searchController: _searchController,
+                            onSearchChanged: (value) {
+                              setState(() {
+                                _searchQuery = value;
+                              });
+                            },
+                            onAddPressed: () => _openSiteSelector(
+                              manager: manager,
+                              allSites: allSites,
+                              assignedSites: assignedSites,
+                            ),
+                            addButtonLabel: 'Add Site',
+                            sites: filteredSites,
+                            countLabel:
+                                '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
+                            emptyMessage: _searchQuery.trim().isEmpty
+                                ? 'No sites assigned to this manager yet.'
+                                : 'No assigned sites match your search.',
+                            onRemoveSite: (siteId) => _removeAssignedSite(
+                              manager: manager,
+                              assignedSites: assignedSites,
+                              siteId: siteId,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildInfoTab() {
+  List<SiteModel> _filterSites(List<SiteModel> sites) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return sites;
+    }
+
+    return sites.where((site) {
+      return site.name.toLowerCase().contains(query) ||
+          site.location.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  Widget _buildInfoTab(ManagerModel manager) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
@@ -285,7 +318,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _manager.name,
+                manager.name,
                 style: AppTextStyles.headingSmall.copyWith(
                   color: AppColors.neutral900,
                   fontWeight: FontWeight.w700,
@@ -293,7 +326,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _manager.email,
+                manager.email,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.primary700,
                   fontWeight: FontWeight.w600,
@@ -301,7 +334,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                _manager.phone,
+                manager.phone,
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.neutral700,
                   fontWeight: FontWeight.w600,
@@ -324,37 +357,15 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
           ),
           child: Column(
             children: [
-              _buildInfoRow('Name', _manager.name),
+              _buildInfoRow('Name', manager.name),
               _buildDivider(),
-              _buildInfoRow('Email', _manager.email),
+              _buildInfoRow('Email', manager.email),
               _buildDivider(),
-              _buildInfoRow('Mobile', _manager.phone),
+              _buildInfoRow('Mobile', manager.phone),
             ],
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSitesTab() {
-    final sites = _filteredSites;
-
-    return SiteAssignmentTab(
-      searchController: _searchController,
-      onSearchChanged: (value) {
-        setState(() {
-          _searchQuery = value;
-        });
-      },
-      onAddPressed: _openSiteSelector,
-      addButtonLabel: 'Add Site',
-      sites: sites,
-      countLabel:
-          '${_assignedSites.length} ${_assignedSites.length == 1 ? 'site' : 'sites'} assigned',
-      emptyMessage: _searchQuery.trim().isEmpty
-          ? 'No sites assigned to this manager yet.'
-          : 'No assigned sites match your search.',
-      onRemoveSite: _removeAssignedSite,
     );
   }
 
@@ -395,6 +406,17 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
       height: 1,
       thickness: 1,
       color: AppColors.neutral200,
+    );
+  }
+
+  Widget _buildUnavailableState(String message) {
+    return Center(
+      child: Text(
+        message,
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
+      ),
     );
   }
 }

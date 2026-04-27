@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../modules/admin/services/firestore_seed_service.dart';
 import '../../modules/notifications/services/notification_module.dart';
 import '../../widgets/list_tile.dart';
 import '../../widgets/section_header.dart';
@@ -21,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoadingPreferences = true;
   bool _isUpdatingPushSetting = false;
   bool _isSendingTestNotification = false;
+  bool _isSeedingDatabase = false;
 
   @override
   void initState() {
@@ -137,6 +139,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _seedDatabase() async {
+    if (_isSeedingDatabase) {
+      return;
+    }
+
+    setState(() {
+      _isSeedingDatabase = true;
+    });
+
+    try {
+      await seedDatabase(clearExisting: true);
+      print('Seed Completed');
+      if (!mounted) {
+        return;
+      }
+      _showPlaceholderMessage('Database seeded successfully.');
+    } catch (error) {
+      print('Seed Error: $error');
+      if (!mounted) {
+        return;
+      }
+      _showPlaceholderMessage('Unable to seed the database.');
+    } finally {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isSeedingDatabase = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,105 +187,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: _isLoadingPreferences
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        children: [
-          const SectionHeader(title: 'Notifications'),
-          const SizedBox(height: 10),
-          ToggleTile(
-            title: 'Push Notifications',
-            subtitle: 'Receive real-time alerts',
-            leadingIcon: Icons.notifications_active_outlined,
-            value: _pushNotifications,
-            onChanged: _isUpdatingPushSetting
-                ? (_) {}
-                : _updatePushNotifications,
-          ),
-          const SizedBox(height: 12),
-          ToggleTile(
-            title: 'In-App Notifications',
-            subtitle: 'Show notifications inside app',
-            leadingIcon: Icons.notifications_none_rounded,
-            value: _inAppNotifications,
-            onChanged: _updateInAppNotifications,
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSendingTestNotification
-                  ? null
-                  : _sendTestNotification,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              children: [
+                const SectionHeader(title: 'Notifications'),
+                const SizedBox(height: 10),
+                ToggleTile(
+                  title: 'Push Notifications',
+                  subtitle: 'Receive real-time alerts',
+                  leadingIcon: Icons.notifications_active_outlined,
+                  value: _pushNotifications,
+                  onChanged: _isUpdatingPushSetting
+                      ? (_) {}
+                      : _updatePushNotifications,
                 ),
-              ),
-              child: Text(
-                _isSendingTestNotification
-                    ? 'Sending...'
-                    : 'Send Test Notification',
-              ),
+                const SizedBox(height: 12),
+                ToggleTile(
+                  title: 'In-App Notifications',
+                  subtitle: 'Show notifications inside app',
+                  leadingIcon: Icons.notifications_none_rounded,
+                  value: _inAppNotifications,
+                  onChanged: _updateInAppNotifications,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isSendingTestNotification
+                        ? null
+                        : _sendTestNotification,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: Text(
+                      _isSendingTestNotification
+                          ? 'Sending...'
+                          : 'Send Test Notification',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'App Settings'),
+                const SizedBox(height: 10),
+                const AppListTile(
+                  title: 'Theme',
+                  leadingIcon: Icons.light_mode_outlined,
+                  trailing: _ValuePill(label: 'Light'),
+                ),
+                const SizedBox(height: 12),
+                const AppListTile(
+                  title: 'Language',
+                  leadingIcon: Icons.language_rounded,
+                  trailing: _ValuePill(label: 'English'),
+                ),
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'Data'),
+                const SizedBox(height: 10),
+                AppListTile(
+                  title: 'Export Reports',
+                  leadingIcon: Icons.file_upload_outlined,
+                  onTap: () => _showPlaceholderMessage(
+                    'Report export will be available soon.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                AppListTile(
+                  title: 'Download Data',
+                  leadingIcon: Icons.download_outlined,
+                  onTap: () => _showPlaceholderMessage(
+                    'Data download will be available soon.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isSeedingDatabase ? null : _seedDatabase,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    child: Text(
+                      _isSeedingDatabase
+                          ? 'Seeding Database...'
+                          : 'Seed Database',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const SectionHeader(title: 'About'),
+                const SizedBox(height: 10),
+                const AppListTile(
+                  title: 'App Version',
+                  leadingIcon: Icons.info_outline_rounded,
+                  trailing: _ValuePill(label: 'v1.0.0'),
+                ),
+                const SizedBox(height: 12),
+                AppListTile(
+                  title: 'Privacy Policy',
+                  leadingIcon: Icons.privacy_tip_outlined,
+                  onTap: () => _showPlaceholderMessage(
+                    'Privacy policy details will be available soon.',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                AppListTile(
+                  title: 'Terms',
+                  leadingIcon: Icons.gavel_outlined,
+                  onTap: () => _showPlaceholderMessage(
+                    'Terms details will be available soon.',
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 20),
-          const SectionHeader(title: 'App Settings'),
-          const SizedBox(height: 10),
-          const AppListTile(
-            title: 'Theme',
-            leadingIcon: Icons.light_mode_outlined,
-            trailing: _ValuePill(label: 'Light'),
-          ),
-          const SizedBox(height: 12),
-          const AppListTile(
-            title: 'Language',
-            leadingIcon: Icons.language_rounded,
-            trailing: _ValuePill(label: 'English'),
-          ),
-          const SizedBox(height: 20),
-          const SectionHeader(title: 'Data'),
-          const SizedBox(height: 10),
-          AppListTile(
-            title: 'Export Reports',
-            leadingIcon: Icons.file_upload_outlined,
-            onTap: () => _showPlaceholderMessage(
-              'Report export will be available soon.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          AppListTile(
-            title: 'Download Data',
-            leadingIcon: Icons.download_outlined,
-            onTap: () => _showPlaceholderMessage(
-              'Data download will be available soon.',
-            ),
-          ),
-          const SizedBox(height: 20),
-          const SectionHeader(title: 'About'),
-          const SizedBox(height: 10),
-          const AppListTile(
-            title: 'App Version',
-            leadingIcon: Icons.info_outline_rounded,
-            trailing: _ValuePill(label: 'v1.0.0'),
-          ),
-          const SizedBox(height: 12),
-          AppListTile(
-            title: 'Privacy Policy',
-            leadingIcon: Icons.privacy_tip_outlined,
-            onTap: () => _showPlaceholderMessage(
-              'Privacy policy details will be available soon.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          AppListTile(
-            title: 'Terms',
-            leadingIcon: Icons.gavel_outlined,
-            onTap: () => _showPlaceholderMessage(
-              'Terms details will be available soon.',
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../modules/admin/data/admin_dummy_data.dart';
 import '../../modules/admin/models/attendance_record.dart';
+import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/admin_search_bar.dart';
 import '../../modules/admin/widgets/attendance_table.dart';
 import '../../modules/admin/widgets/kpi_card.dart';
@@ -16,35 +16,11 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
+  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
   String _searchQuery = '';
-
-  List<AttendanceRecord> get _filteredRecords {
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return AdminDummyData.attendanceRecords;
-    }
-
-    return AdminDummyData.attendanceRecords.where((record) {
-      return record.name.toLowerCase().contains(query) ||
-          record.status.toLowerCase().contains(query) ||
-          record.date.toLowerCase().contains(query) ||
-          record.checkIn.toLowerCase().contains(query) ||
-          record.checkOut.toLowerCase().contains(query);
-    }).toList(growable: false);
-  }
-
-  int get _presentCount => AdminDummyData.attendanceRecords
-      .where((record) => record.status == 'Present')
-      .length;
-
-  int get _absentCount => AdminDummyData.attendanceRecords
-      .where((record) => record.status == 'Absent')
-      .length;
 
   @override
   Widget build(BuildContext context) {
-    final records = _filteredRecords;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
@@ -58,87 +34,103 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: records.isEmpty
-            ? Column(
-                children: [
-                  AdminSearchBar(
-                    height: 50,
-                    hintText: 'Search attendance...',
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
+        child: StreamBuilder<List<AttendanceRecord>>(
+          stream: _repository.watchAttendance(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return _buildErrorState();
+            }
+
+            final allRecords = snapshot.data ?? const <AttendanceRecord>[];
+            final records = _filterRecords(allRecords);
+            final presentCount = allRecords
+                .where((record) => record.status == 'Present')
+                .length;
+            final absentCount = allRecords
+                .where((record) => record.status == 'Absent')
+                .length;
+
+            return records.isEmpty
+                ? Column(
                     children: [
-                      Expanded(
-                        child: KPICard(
-                          title: 'Today\'s Present',
-                          value: _presentCount.toString().padLeft(2, '0'),
-                          icon: Icons.check_circle_outline_rounded,
-                          iconColor: AppColors.success,
-                          height: 96,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: KPICard(
-                          title: 'Today\'s Absent',
-                          value: _absentCount.toString().padLeft(2, '0'),
-                          icon: Icons.highlight_off_rounded,
-                          iconColor: AppColors.error,
-                          height: 96,
-                        ),
-                      ),
+                      _buildSearchBar(),
+                      const SizedBox(height: 16),
+                      _buildKpiRow(presentCount, absentCount),
+                      const SizedBox(height: 24),
+                      Expanded(child: _buildEmptyState()),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(child: _buildEmptyState()),
-                ],
-              )
-            : ListView(
-                children: [
-                  AdminSearchBar(
-                    height: 50,
-                    hintText: 'Search attendance...',
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
+                  )
+                : ListView(
                     children: [
-                      Expanded(
-                        child: KPICard(
-                          title: 'Today\'s Present',
-                          value: _presentCount.toString().padLeft(2, '0'),
-                          icon: Icons.check_circle_outline_rounded,
-                          iconColor: AppColors.success,
-                          height: 96,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: KPICard(
-                          title: 'Today\'s Absent',
-                          value: _absentCount.toString().padLeft(2, '0'),
-                          icon: Icons.highlight_off_rounded,
-                          iconColor: AppColors.error,
-                          height: 96,
-                        ),
-                      ),
+                      _buildSearchBar(),
+                      const SizedBox(height: 16),
+                      _buildKpiRow(presentCount, absentCount),
+                      const SizedBox(height: 16),
+                      AttendanceTable(records: records),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  AttendanceTable(records: records),
-                ],
-              ),
+                  );
+          },
+        ),
       ),
     );
+  }
+
+  Widget _buildSearchBar() {
+    return AdminSearchBar(
+      height: 50,
+      hintText: 'Search attendance...',
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+    );
+  }
+
+  Widget _buildKpiRow(int presentCount, int absentCount) {
+    return Row(
+      children: [
+        Expanded(
+          child: KPICard(
+            title: 'Today\'s Present',
+            value: presentCount.toString().padLeft(2, '0'),
+            icon: Icons.check_circle_outline_rounded,
+            iconColor: AppColors.success,
+            height: 96,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: KPICard(
+            title: 'Today\'s Absent',
+            value: absentCount.toString().padLeft(2, '0'),
+            icon: Icons.highlight_off_rounded,
+            iconColor: AppColors.error,
+            height: 96,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<AttendanceRecord> _filterRecords(List<AttendanceRecord> records) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) {
+      return records;
+    }
+
+    return records.where((record) {
+      return record.name.toLowerCase().contains(query) ||
+          record.status.toLowerCase().contains(query) ||
+          record.date.toLowerCase().contains(query) ||
+          record.checkIn.toLowerCase().contains(query) ||
+          record.checkOut.toLowerCase().contains(query);
+    }).toList(growable: false);
   }
 
   Widget _buildEmptyState() {
@@ -161,18 +153,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No attendance records found',
+            'No data available',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
-            'Attendance data will appear here once records are available.',
+            'Attendance records will appear here once data is available.',
             textAlign: TextAlign.center,
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.neutral500,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Text(
+        'Unable to load attendance.',
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
       ),
     );
   }
