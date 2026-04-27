@@ -9,31 +9,46 @@ class MoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_MoreItem> items = const [
-      _MoreItem(
-        icon: Icons.groups_rounded,
-        title: 'Managers',
-        routeName: AppRoutes.managers,
+    final List<_MoreSection> sections = const [
+      _MoreSection(
+        title: 'Management',
+        items: [
+          _MoreItem(
+            icon: Icons.groups_rounded,
+            title: 'Managers',
+            routeName: AppRoutes.managers,
+          ),
+          _MoreItem(
+            icon: Icons.account_tree_rounded,
+            title: 'Branches',
+            routeName: AppRoutes.branches,
+          ),
+        ],
       ),
-      _MoreItem(
-        icon: Icons.account_tree_rounded,
-        title: 'Branches',
-        routeName: AppRoutes.branches,
+      _MoreSection(
+        title: 'Analytics',
+        items: [
+          _MoreItem(
+            icon: Icons.assessment_rounded,
+            title: 'Reports',
+            routeName: AppRoutes.reports,
+          ),
+        ],
       ),
-      _MoreItem(
-        icon: Icons.assessment_rounded,
-        title: 'Reports',
-        routeName: AppRoutes.reports,
-      ),
-      _MoreItem(
-        icon: Icons.person_rounded,
-        title: 'Profile',
-        routeName: AppRoutes.profile,
-      ),
-      _MoreItem(
-        icon: Icons.settings_rounded,
-        title: 'Settings',
-        routeName: AppRoutes.settings,
+      _MoreSection(
+        title: 'Account',
+        items: [
+          _MoreItem(
+            icon: Icons.person_rounded,
+            title: 'Profile',
+            routeName: AppRoutes.profile,
+          ),
+          _MoreItem(
+            icon: Icons.settings_rounded,
+            title: 'Settings',
+            routeName: AppRoutes.settings,
+          ),
+        ],
       ),
     ];
 
@@ -50,64 +65,95 @@ class MoreScreen extends StatelessWidget {
       ),
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemCount: sections.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 20),
         itemBuilder: (context, index) {
-          final item = items[index];
+          final section = sections[index];
 
-          return Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(18),
-              onTap: () => Navigator.pushNamed(context, item.routeName),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                section.title,
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.neutral500,
+                  fontWeight: FontWeight.w700,
                 ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.neutral200),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary50,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        color: AppColors.primary600,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.neutral900,
+              ),
+              const SizedBox(height: 10),
+              ...section.items.asMap().entries.map((entry) {
+                final item = entry.value;
+                final isLast = entry.key == section.items.length - 1;
+
+                return Padding(
+                  padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => Navigator.pushNamed(context, item.routeName),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: AppColors.neutral200),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary50,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                item.icon,
+                                color: AppColors.primary600,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.neutral900,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: AppColors.neutral400,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 16,
-                      color: AppColors.neutral400,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+                );
+              }),
+            ],
           );
         },
       ),
     );
   }
+}
+
+class _MoreSection {
+  const _MoreSection({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<_MoreItem> items;
 }
 
 class _MoreItem {

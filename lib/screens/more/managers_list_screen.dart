@@ -5,6 +5,8 @@ import '../../core/theme/app_text_styles.dart';
 import '../../modules/admin/data/admin_dummy_data.dart';
 import '../../modules/admin/models/manager_model.dart';
 import '../../modules/admin/widgets/admin_search_bar.dart';
+import 'add_manager_screen.dart';
+import 'manager_detail_screen.dart';
 
 class ManagersListScreen extends StatefulWidget {
   const ManagersListScreen({super.key});
@@ -14,19 +16,66 @@ class ManagersListScreen extends StatefulWidget {
 }
 
 class _ManagersListScreenState extends State<ManagersListScreen> {
+  late final List<ManagerModel> _managers;
   String _searchQuery = '';
 
   List<ManagerModel> get _filteredManagers {
     final query = _searchQuery.trim().toLowerCase();
     if (query.isEmpty) {
-      return AdminDummyData.managers;
+      return _managers;
     }
 
-    return AdminDummyData.managers.where((manager) {
+    return _managers.where((manager) {
       return manager.name.toLowerCase().contains(query) ||
           manager.email.toLowerCase().contains(query) ||
           manager.phone.toLowerCase().contains(query);
     }).toList(growable: false);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _managers = AdminDummyData.managers.toList(growable: true);
+  }
+
+  Future<void> _openAddManager() async {
+    final manager = await Navigator.push<ManagerModel>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddManagerScreen()),
+    );
+
+    if (manager != null) {
+      setState(() {
+        _managers.insert(0, manager);
+      });
+    }
+  }
+
+  Future<void> _openManagerDetail(ManagerModel manager) async {
+    final result = await Navigator.push<ManagerDetailResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ManagerDetailScreen(manager: manager),
+      ),
+    );
+
+    if (result == null) return;
+
+    if (result.deleted) {
+      setState(() {
+        _managers.removeWhere((item) => item.id == manager.id);
+      });
+      return;
+    }
+
+    if (result.manager != null) {
+      setState(() {
+        final index = _managers.indexWhere((item) => item.id == manager.id);
+        if (index != -1) {
+          _managers[index] = result.manager!;
+        }
+      });
+    }
   }
 
   @override
@@ -48,14 +97,33 @@ class _ManagersListScreenState extends State<ManagersListScreen> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         child: Column(
           children: [
-            AdminSearchBar(
-              height: 50,
-              hintText: 'Search managers...',
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+            Row(
+              children: [
+                Expanded(
+                  child: AdminSearchBar(
+                    height: 50,
+                    hintText: 'Search managers...',
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _openAddManager,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add Manager'),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(138, 50),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -66,61 +134,73 @@ class _ManagersListScreenState extends State<ManagersListScreen> {
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final manager = managers[index];
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
+                        return Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AppColors.neutral200),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 24,
-                                backgroundColor: AppColors.primary50,
-                                child: Text(
-                                  manager.name.substring(0, 1),
-                                  style: AppTextStyles.bodyLarge.copyWith(
-                                    color: AppColors.primary600,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                            onTap: () => _openManagerDetail(manager),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: AppColors.neutral200),
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      manager.name,
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: AppColors.primary50,
+                                    child: Text(
+                                      manager.name.substring(0, 1),
                                       style: AppTextStyles.bodyLarge.copyWith(
+                                        color: AppColors.primary600,
                                         fontWeight: FontWeight.w700,
-                                        color: AppColors.neutral900,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      manager.email,
-                                      style: AppTextStyles.bodyMedium.copyWith(
-                                        color: AppColors.neutral600,
-                                      ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          manager.name,
+                                          style:
+                                              AppTextStyles.bodyLarge.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.neutral900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          manager.email,
+                                          style:
+                                              AppTextStyles.bodyMedium.copyWith(
+                                            color: AppColors.neutral600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          manager.phone,
+                                          style:
+                                              AppTextStyles.bodySmall.copyWith(
+                                            color: AppColors.neutral500,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      manager.phone,
-                                      style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.neutral500,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.neutral400,
+                                  ),
+                                ],
                               ),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: AppColors.neutral400,
-                              ),
-                            ],
+                            ),
                           ),
                         );
                       },

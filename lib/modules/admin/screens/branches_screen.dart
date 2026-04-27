@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../data/admin_dummy_data.dart';
 import '../models/branch_model.dart';
 import '../widgets/admin_search_bar.dart';
 import '../widgets/branch_card.dart';
@@ -15,22 +16,7 @@ class BranchesScreen extends StatefulWidget {
 }
 
 class _BranchesScreenState extends State<BranchesScreen> {
-  final List<BranchModel> _branches = [
-    const BranchModel(
-      id: '1',
-      name: 'Ahmedabad',
-      city: 'Ahmedabad',
-      address: 'SG Highway, Ahmedabad',
-      siteIds: ['site_1', 'site_2', 'site_3'],
-    ),
-    const BranchModel(
-      id: '2',
-      name: 'Rajkot',
-      city: 'Rajkot',
-      address: 'Kalawad Road, Rajkot',
-      siteIds: ['site_4', 'site_5'],
-    ),
-  ];
+  late final List<BranchModel> _branches;
 
   String _searchQuery = '';
 
@@ -42,8 +28,15 @@ class _BranchesScreenState extends State<BranchesScreen> {
     final query = _searchQuery.toLowerCase();
     return _branches.where((branch) {
       return branch.name.toLowerCase().contains(query) ||
-          branch.city.toLowerCase().contains(query);
+          branch.city.toLowerCase().contains(query) ||
+          branch.address.toLowerCase().contains(query);
     }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _branches = AdminDummyData.branches.toList(growable: true);
   }
 
   Future<void> _openAddBranch() async {
@@ -178,10 +171,9 @@ class _BranchesScreenState extends State<BranchesScreen> {
                 ElevatedButton.icon(
                   onPressed: _openAddBranch,
                   icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add'),
+                  label: const Text('Add Branch'),
                   style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(104, 50),
-                    maximumSize: const Size(120, 50),
+                    minimumSize: const Size(136, 50),
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(25),

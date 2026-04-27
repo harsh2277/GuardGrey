@@ -8,6 +8,7 @@ class KPICard extends StatelessWidget {
   final IconData icon;
   final Color? iconColor;
   final Color? backgroundColor;
+  final double? height;
 
   const KPICard({
     super.key,
@@ -16,11 +17,13 @@ class KPICard extends StatelessWidget {
     required this.icon,
     this.iconColor,
     this.backgroundColor,
+    this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: backgroundColor ?? Colors.white,

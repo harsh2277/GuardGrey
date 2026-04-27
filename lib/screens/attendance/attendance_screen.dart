@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../modules/admin/data/admin_dummy_data.dart';
-import '../../modules/admin/models/visit_model.dart';
+import '../../modules/admin/models/attendance_record.dart';
 import '../../modules/admin/widgets/admin_search_bar.dart';
+import '../../modules/admin/widgets/attendance_table.dart';
+import '../../modules/admin/widgets/kpi_card.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -16,27 +18,32 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   String _searchQuery = '';
 
-  List<VisitModel> get _filteredVisits {
+  List<AttendanceRecord> get _filteredRecords {
     final query = _searchQuery.trim().toLowerCase();
     if (query.isEmpty) {
-      return AdminDummyData.visits;
+      return AdminDummyData.attendanceRecords;
     }
 
-    return AdminDummyData.visits.where((visit) {
-      final siteName = AdminDummyData.getSitesByIds([visit.siteId])
-          .map((site) => site.name.toLowerCase())
-          .join(' ');
-
-      return visit.managerName.toLowerCase().contains(query) ||
-          visit.status.toLowerCase().contains(query) ||
-          visit.date.toLowerCase().contains(query) ||
-          siteName.contains(query);
+    return AdminDummyData.attendanceRecords.where((record) {
+      return record.name.toLowerCase().contains(query) ||
+          record.status.toLowerCase().contains(query) ||
+          record.date.toLowerCase().contains(query) ||
+          record.checkIn.toLowerCase().contains(query) ||
+          record.checkOut.toLowerCase().contains(query);
     }).toList(growable: false);
   }
 
+  int get _presentCount => AdminDummyData.attendanceRecords
+      .where((record) => record.status == 'Present')
+      .length;
+
+  int get _absentCount => AdminDummyData.attendanceRecords
+      .where((record) => record.status == 'Absent')
+      .length;
+
   @override
   Widget build(BuildContext context) {
-    final visits = _filteredVisits;
+    final records = _filteredRecords;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -51,86 +58,85 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: Column(
-          children: [
-            AdminSearchBar(
-              height: 50,
-              hintText: 'Search attendance...',
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: visits.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      itemCount: visits.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final visit = visits[index];
-                        final site = AdminDummyData.getSitesByIds([visit.siteId]);
-                        final siteName =
-                            site.isNotEmpty ? site.first.name : 'Unknown Site';
-
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AppColors.neutral200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      visit.managerName,
-                                      style: AppTextStyles.bodyLarge.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.neutral900,
-                                      ),
-                                    ),
-                                  ),
-                                  _StatusChip(status: visit.status),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                siteName,
-                                style: AppTextStyles.bodyMedium.copyWith(
-                                  color: AppColors.neutral600,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _InfoText(
-                                      icon: Icons.calendar_today_outlined,
-                                      text: visit.date,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: _InfoText(
-                                      icon: Icons.schedule_outlined,
-                                      text: visit.time,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+        child: records.isEmpty
+            ? Column(
+                children: [
+                  AdminSearchBar(
+                    height: 50,
+                    hintText: 'Search attendance...',
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: KPICard(
+                          title: 'Today\'s Present',
+                          value: _presentCount.toString().padLeft(2, '0'),
+                          icon: Icons.check_circle_outline_rounded,
+                          iconColor: AppColors.success,
+                          height: 96,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: KPICard(
+                          title: 'Today\'s Absent',
+                          value: _absentCount.toString().padLeft(2, '0'),
+                          icon: Icons.highlight_off_rounded,
+                          iconColor: AppColors.error,
+                          height: 96,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Expanded(child: _buildEmptyState()),
+                ],
+              )
+            : ListView(
+                children: [
+                  AdminSearchBar(
+                    height: 50,
+                    hintText: 'Search attendance...',
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: KPICard(
+                          title: 'Today\'s Present',
+                          value: _presentCount.toString().padLeft(2, '0'),
+                          icon: Icons.check_circle_outline_rounded,
+                          iconColor: AppColors.success,
+                          height: 96,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: KPICard(
+                          title: 'Today\'s Absent',
+                          value: _absentCount.toString().padLeft(2, '0'),
+                          icon: Icons.highlight_off_rounded,
+                          iconColor: AppColors.error,
+                          height: 96,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  AttendanceTable(records: records),
+                ],
+              ),
       ),
     );
   }
@@ -168,81 +174,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    Color backgroundColor;
-    Color textColor;
-
-    switch (status) {
-      case 'Completed':
-        backgroundColor = AppColors.successLight;
-        textColor = AppColors.successDark;
-        break;
-      case 'In Progress':
-        backgroundColor = AppColors.primary50;
-        textColor = AppColors.primary700;
-        break;
-      default:
-        backgroundColor = AppColors.warningLight;
-        textColor = AppColors.warningDark;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status,
-        style: AppTextStyles.bodySmall.copyWith(
-          color: textColor,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoText extends StatelessWidget {
-  const _InfoText({
-    required this.icon,
-    required this.text,
-  });
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: AppColors.neutral500,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.neutral600,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

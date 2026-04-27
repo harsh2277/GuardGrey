@@ -6,9 +6,9 @@ import '../data/admin_dummy_data.dart';
 import '../models/branch_model.dart';
 import '../models/site_model.dart';
 import 'add_branch_screen.dart';
-import '../widgets/admin_search_bar.dart';
-import '../widgets/site_list_item.dart';
+import '../widgets/site_assignment_tab.dart';
 import '../widgets/site_selector_bottom_sheet.dart';
+import '../../../widgets/action_bottom_sheet.dart';
 
 class BranchDetailResult {
   final BranchModel? branch;
@@ -36,7 +36,6 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
   late BranchModel _branch;
   late final TextEditingController _searchController;
   final Set<String> _draftSiteIds = <String>{};
-  bool _isEditMode = false;
   String _searchQuery = '';
 
   List<SiteModel> get _assignedSites =>
@@ -79,7 +78,7 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
   }
 
   List<SiteModel> get _filteredSites {
-    final sites = _isEditMode ? _editableAssignedSites : _assignedSites;
+    final sites = _editableAssignedSites;
     final query = _searchQuery.trim().toLowerCase();
 
     if (query.isEmpty) {
@@ -97,49 +96,13 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
     super.initState();
     _branch = widget.branch;
     _searchController = TextEditingController();
+    _draftSiteIds.addAll(_branch.siteIds);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _toggleEditMode() {
-    if (_isEditMode) {
-      final hadChanges = _draftSiteIds.length != _branch.siteIds.length ||
-          !_draftSiteIds.containsAll(_branch.siteIds);
-
-      setState(() {
-        _draftSiteIds
-          ..clear()
-          ..addAll(_branch.siteIds);
-        _isEditMode = false;
-        _searchController.clear();
-        _searchQuery = '';
-      });
-
-      if (hadChanges) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Site assignment changes discarded.',
-              style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-            ),
-            backgroundColor: AppColors.neutral800,
-          ),
-        );
-      }
-
-      return;
-    }
-
-    setState(() {
-      _draftSiteIds
-        ..clear()
-        ..addAll(_branch.siteIds);
-      _isEditMode = true;
-    });
   }
 
   Future<void> _openSiteSelector() async {
@@ -155,34 +118,19 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
       _draftSiteIds
         ..clear()
         ..addAll(selectedSites.map((site) => site.id));
+      _branch = _branch.copyWith(
+        siteIds: _draftSiteIds.toList(growable: false),
+      );
     });
   }
 
   void _removeAssignedSite(String siteId) {
     setState(() {
       _draftSiteIds.remove(siteId);
-    });
-  }
-
-  void _saveSiteAssignments() {
-    setState(() {
       _branch = _branch.copyWith(
         siteIds: _draftSiteIds.toList(growable: false),
       );
-      _isEditMode = false;
-      _searchController.clear();
-      _searchQuery = '';
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Branch site assignments updated.',
-          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-        ),
-        backgroundColor: AppColors.success,
-      ),
-    );
   }
 
   Future<void> _openEditBranch() async {
@@ -197,11 +145,9 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
 
     setState(() {
       _branch = updated;
-      if (_isEditMode) {
-        _draftSiteIds
-          ..clear()
-          ..addAll(updated.siteIds);
-      }
+      _draftSiteIds
+        ..clear()
+        ..addAll(updated.siteIds);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -212,6 +158,26 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
         ),
         backgroundColor: AppColors.success,
       ),
+    );
+  }
+
+  Future<void> _openActionsSheet() {
+    return ActionBottomSheet.show(
+      context,
+      items: [
+        ActionBottomSheetItem(
+          icon: Icons.edit_outlined,
+          label: 'Edit Branch',
+          onTap: _openEditBranch,
+        ),
+        ActionBottomSheetItem(
+          icon: Icons.delete_outline_rounded,
+          label: 'Delete Branch',
+          textColor: AppColors.error,
+          iconColor: AppColors.error,
+          onTap: _deleteBranch,
+        ),
+      ],
     );
   }
 
@@ -291,82 +257,24 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 20),
-                child: PopupMenuButton<String>(
-                  tooltip: 'More actions',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                  color: Colors.white,
-                  surfaceTintColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: AppColors.neutral200),
-                  ),
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _openEditBranch();
-                    }
-                    if (value == 'delete') {
-                      _deleteBranch();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: AppColors.neutral700,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Edit Branch',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.neutral800,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openActionsSheet,
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.neutral100,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.neutral200),
                       ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 18,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Delete Branch',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: const Icon(
+                        Icons.more_vert_rounded,
+                        color: AppColors.neutral700,
+                        size: 20,
                       ),
-                    ),
-                  ],
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.neutral100,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.neutral200),
-                    ),
-                    child: const Icon(
-                      Icons.more_vert_rounded,
-                      color: AppColors.neutral700,
-                      size: 20,
                     ),
                   ),
                 ),
@@ -375,7 +283,7 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(68),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -728,174 +636,22 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
 
   Widget _buildSitesTab() {
     final sites = _filteredSites;
-    final assignedCount =
-        _isEditMode ? _draftSiteIds.length : _branch.siteIds.length;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      children: [
-        AdminSearchBar(
-          controller: _searchController,
-          hintText: 'Search sites...',
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Assigned Sites',
-                    style: AppTextStyles.title.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$assignedCount ${assignedCount == 1 ? 'site' : 'sites'} assigned',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.neutral500,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_isEditMode) ...[
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: _toggleEditMode,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                child: const Text('Cancel'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _openSiteSelector,
-                icon: const Icon(Icons.add_business_outlined, size: 18),
-                label: const Text('Assign Sites'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-              ),
-            ] else
-              OutlinedButton(
-                onPressed: _toggleEditMode,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                child: const Text('Manage Sites'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (sites.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.neutral200),
-            ),
-            child: Text(
-              _searchQuery.trim().isEmpty
-                  ? 'No sites assigned to this branch yet.'
-                  : 'No assigned sites match your search.',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.neutral500,
-              ),
-            ),
-          )
-        else
-          ...sites.map(
-            (site) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: SiteListItem(
-                siteName: site.name,
-                subtitle: site.location,
-                onTap: _isEditMode
-                    ? null
-                    : () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Site details will be added soon.',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                            backgroundColor: AppColors.primary600,
-                          ),
-                        );
-                      },
-                trailing: _isEditMode
-                    ? IconButton(
-                        onPressed: () => _removeAssignedSite(site.id),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: AppColors.error,
-                          size: 20,
-                        ),
-                        splashRadius: 20,
-                      )
-                    : const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 16,
-                        color: AppColors.neutral400,
-                      ),
-              ),
-            ),
-          ),
-        if (_isEditMode) ...[
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: _saveSiteAssignments,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            child: const Text('Save Changes'),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildFieldTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.bodySmall.copyWith(
-        color: AppColors.neutral500,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  Widget _buildFieldValue(String value) {
-    return Text(
-      value,
-      style: AppTextStyles.bodyLarge.copyWith(
-        color: AppColors.neutral800,
-      ),
+    return SiteAssignmentTab(
+      searchController: _searchController,
+      onSearchChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+      onAddPressed: _openSiteSelector,
+      addButtonLabel: 'Add Site',
+      sites: sites,
+      countLabel:
+          '${_branch.siteIds.length} ${_branch.siteIds.length == 1 ? 'site' : 'sites'} assigned',
+      emptyMessage: _searchQuery.trim().isEmpty
+          ? 'No sites assigned to this branch yet.'
+          : 'No assigned sites match your search.',
+      onRemoveSite: _removeAssignedSite,
     );
   }
 }

@@ -236,7 +236,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(68),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(

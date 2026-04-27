@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/location_input_field.dart';
 import '../data/admin_dummy_data.dart';
 import '../models/branch_model.dart';
+import '../models/location_picker_result.dart';
 import '../models/site_model.dart';
 import '../widgets/selected_site_chip.dart';
 import '../widgets/site_selector_bottom_sheet.dart';
+import 'location_picker_screen.dart';
 
 class AddBranchScreen extends StatefulWidget {
   final BranchModel? branch;
@@ -27,6 +30,8 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
   late final TextEditingController _cityController;
   late final TextEditingController _addressController;
   late List<SiteModel> _selectedSites;
+  double? _selectedLatitude;
+  double? _selectedLongitude;
 
   @override
   void initState() {
@@ -35,6 +40,8 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     _branchNameController = TextEditingController(text: branch?.name ?? '');
     _cityController = TextEditingController(text: branch?.city ?? '');
     _addressController = TextEditingController(text: branch?.address ?? '');
+    _selectedLatitude = branch?.latitude;
+    _selectedLongitude = branch?.longitude;
     _selectedSites =
         AdminDummyData.getSitesByIds(branch?.siteIds ?? const <String>[]);
   }
@@ -61,6 +68,28 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     }
   }
 
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LocationPickerResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          initialAddress: _addressController.text.trim(),
+          initialLatitude: _selectedLatitude,
+          initialLongitude: _selectedLongitude,
+        ),
+      ),
+    );
+
+    if (result == null) return;
+
+    setState(() {
+      _addressController.text = result.address;
+      _cityController.text = _extractLocationLabel(result.address);
+      _selectedLatitude = result.latitude;
+      _selectedLongitude = result.longitude;
+    });
+  }
+
   void _saveBranch() {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
@@ -71,6 +100,8 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
       city: _cityController.text.trim(),
       address: _addressController.text.trim(),
       siteIds: _selectedSites.map((site) => site.id).toList(growable: false),
+      latitude: _selectedLatitude,
+      longitude: _selectedLongitude,
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -131,13 +162,64 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                 },
               ),
               const SizedBox(height: 18),
-              _buildFieldLabel('Address'),
+              _buildFieldLabel('Location'),
               const SizedBox(height: 8),
-              _buildTextField(
-                controller: _addressController,
-                hintText: 'Enter address',
-                maxLines: 3,
+              FormField<String>(
+                initialValue: _addressController.text,
+                validator: (value) {
+                  if (_addressController.text.trim().isEmpty) {
+                    return 'Location is required';
+                  }
+                  return null;
+                },
+                builder: (field) {
+                  return LocationInputField(
+                    address: _addressController.text,
+                    errorText: field.errorText,
+                    onTap: () async {
+                      await _openLocationPicker();
+                      if (mounted) {
+                        field.didChange(_addressController.text);
+                      }
+                    },
+                  );
+                },
               ),
+              if (_selectedLatitude != null && _selectedLongitude != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.neutral200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Lat / Lng',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.neutral500,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${_selectedLatitude!.toStringAsFixed(6)}, ${_selectedLongitude!.toStringAsFixed(6)}',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.neutral800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 22),
               Container(
                 width: double.infinity,
@@ -281,5 +363,23 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
         ),
       ),
     );
+  }
+
+  String _extractLocationLabel(String address) {
+    final parts = address
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+
+    if (parts.isEmpty) {
+      return '';
+    }
+
+    if (parts.length >= 2) {
+      return parts[1];
+    }
+
+    return parts.first;
   }
 }

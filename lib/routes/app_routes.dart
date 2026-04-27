@@ -5,6 +5,7 @@ import '../modules/admin/screens/login_screen.dart';
 import '../modules/admin/screens/profile_screen.dart';
 import '../screens/main_navigation.dart';
 import '../screens/more/managers_list_screen.dart';
+import '../screens/more/notifications_screen.dart';
 import '../screens/more/reports_screen.dart';
 import '../screens/more/settings_screen.dart';
 
@@ -18,6 +19,7 @@ class AppRoutes {
   static const String reports = '/more/reports';
   static const String profile = '/more/profile';
   static const String settings = '/more/settings';
+  static const String notifications = '/more/notifications';
 
   static Route<dynamic> onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
@@ -54,6 +56,11 @@ class AppRoutes {
       case settings:
         return MaterialPageRoute<void>(
           builder: (_) => const SettingsScreen(),
+          settings: routeSettings,
+        );
+      case notifications:
+        return MaterialPageRoute<void>(
+          builder: (_) => const NotificationsScreen(),
           settings: routeSettings,
         );
       default:

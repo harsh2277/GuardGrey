@@ -1,3 +1,4 @@
+import '../models/attendance_record.dart';
 import '../models/branch_model.dart';
 import '../models/client_model.dart';
 import '../models/manager_model.dart';
@@ -8,10 +9,38 @@ class AdminDummyData {
   AdminDummyData._();
 
   static const List<ClientModel> clients = [
-    ClientModel(id: 'client_1', name: 'Alpha Retail'),
-    ClientModel(id: 'client_2', name: 'Pinnacle Offices'),
-    ClientModel(id: 'client_3', name: 'CarePlus Health'),
-    ClientModel(id: 'client_4', name: 'Prime Logistics'),
+    ClientModel(
+      id: 'client_1',
+      name: 'Alpha Retail',
+      branchId: '1',
+      siteIds: ['site_1', 'site_7'],
+      email: 'ops@alpharetail.com',
+      phone: '+91 98250 22001',
+    ),
+    ClientModel(
+      id: 'client_2',
+      name: 'Pinnacle Offices',
+      branchId: '1',
+      siteIds: ['site_2', 'site_4'],
+      email: 'admin@pinnacleoffices.com',
+      phone: '+91 98250 22002',
+    ),
+    ClientModel(
+      id: 'client_3',
+      name: 'CarePlus Health',
+      branchId: '2',
+      siteIds: ['site_5'],
+      email: 'support@careplushealth.com',
+      phone: '+91 98250 22003',
+    ),
+    ClientModel(
+      id: 'client_4',
+      name: 'Prime Logistics',
+      branchId: '3',
+      siteIds: ['site_3', 'site_6'],
+      email: 'control@primelogistics.com',
+      phone: '+91 98250 22004',
+    ),
   ];
 
   static const List<ManagerModel> managers = [
@@ -20,30 +49,35 @@ class AdminDummyData {
       name: 'Ravi Patel',
       email: 'ravi.patel@guardgrey.com',
       phone: '+91 98765 11001',
+      siteIds: ['site_1', 'site_7'],
     ),
     ManagerModel(
       id: 'manager_2',
       name: 'Heena Shah',
       email: 'heena.shah@guardgrey.com',
       phone: '+91 98765 11002',
+      siteIds: ['site_2'],
     ),
     ManagerModel(
       id: 'manager_3',
       name: 'Amit Joshi',
       email: 'amit.joshi@guardgrey.com',
       phone: '+91 98765 11003',
+      siteIds: ['site_3', 'site_6'],
     ),
     ManagerModel(
       id: 'manager_4',
       name: 'Sneha Trivedi',
       email: 'sneha.trivedi@guardgrey.com',
       phone: '+91 98765 11004',
+      siteIds: ['site_4'],
     ),
     ManagerModel(
       id: 'manager_5',
       name: 'Kunal Mehta',
       email: 'kunal.mehta@guardgrey.com',
       phone: '+91 98765 11005',
+      siteIds: ['site_5'],
     ),
   ];
 
@@ -54,6 +88,8 @@ class AdminDummyData {
       city: 'Ahmedabad',
       address: 'SG Highway, Ahmedabad',
       siteIds: ['site_1', 'site_2', 'site_3'],
+      latitude: 23.0395,
+      longitude: 72.5315,
     ),
     BranchModel(
       id: '2',
@@ -61,6 +97,8 @@ class AdminDummyData {
       city: 'Rajkot',
       address: 'Kalawad Road, Rajkot',
       siteIds: ['site_4', 'site_5'],
+      latitude: 22.2901,
+      longitude: 70.7853,
     ),
     BranchModel(
       id: '3',
@@ -68,6 +106,8 @@ class AdminDummyData {
       city: 'Surat',
       address: 'Ring Road, Surat',
       siteIds: ['site_6'],
+      latitude: 21.1702,
+      longitude: 72.8311,
     ),
     BranchModel(
       id: '4',
@@ -75,6 +115,8 @@ class AdminDummyData {
       city: 'Vadodara',
       address: 'Alkapuri, Vadodara',
       siteIds: ['site_7'],
+      latitude: 22.3072,
+      longitude: 73.1812,
     ),
   ];
 
@@ -219,6 +261,49 @@ class AdminDummyData {
     ),
   ];
 
+  static const List<AttendanceRecord> attendanceRecords = [
+    AttendanceRecord(
+      id: 'attendance_1',
+      name: 'Ravi Patel',
+      status: 'Present',
+      date: '27 Apr 2026',
+      checkIn: '08:55 AM',
+      checkOut: '06:10 PM',
+    ),
+    AttendanceRecord(
+      id: 'attendance_2',
+      name: 'Heena Shah',
+      status: 'Present',
+      date: '27 Apr 2026',
+      checkIn: '09:05 AM',
+      checkOut: '06:00 PM',
+    ),
+    AttendanceRecord(
+      id: 'attendance_3',
+      name: 'Amit Joshi',
+      status: 'Absent',
+      date: '27 Apr 2026',
+      checkIn: '-',
+      checkOut: '-',
+    ),
+    AttendanceRecord(
+      id: 'attendance_4',
+      name: 'Sneha Trivedi',
+      status: 'Present',
+      date: '27 Apr 2026',
+      checkIn: '08:48 AM',
+      checkOut: '05:52 PM',
+    ),
+    AttendanceRecord(
+      id: 'attendance_5',
+      name: 'Kunal Mehta',
+      status: 'Absent',
+      date: '27 Apr 2026',
+      checkIn: '-',
+      checkOut: '-',
+    ),
+  ];
+
   static List<SiteModel> getSitesByIds(List<String> siteIds) {
     final lookup = {for (final site in sites) site.id: site};
     return siteIds
@@ -254,6 +339,21 @@ class AdminDummyData {
       if (manager.id == managerId) return manager;
     }
     return null;
+  }
+
+  static List<SiteModel> getSitesForClient(String clientId) {
+    return sites
+        .where((site) => site.clientId == clientId)
+        .toList(growable: false);
+  }
+
+  static List<SiteModel> getSitesForManager(String managerId) {
+    final manager = getManagerById(managerId);
+    if (manager == null) {
+      return const <SiteModel>[];
+    }
+
+    return getSitesByIds(manager.siteIds);
   }
 
   static List<VisitModel> getVisitsBySiteId(String siteId) {
