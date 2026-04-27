@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../modules/notifications/services/notification_module.dart';
 import '../../widgets/list_tile.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/toggle_tile.dart';
@@ -14,8 +16,32 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _pushNotifications = true;
-  bool _pullNotifications = true;
+  bool _pushNotifications = false;
+  bool _inAppNotifications = true;
+  bool _isLoadingPreferences = true;
+  bool _isUpdatingPushSetting = false;
+  bool _isSendingTestNotification = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    await NotificationModule.preferencesService.initialize();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _pushNotifications =
+          NotificationModule.preferencesService.isPushEnabled;
+      _inAppNotifications =
+          NotificationModule.preferencesService.isInAppEnabled;
+      _isLoadingPreferences = false;
+    });
+  }
 
   void _showPlaceholderMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -26,6 +52,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         backgroundColor: AppColors.primary600,
       ),
+    );
+  }
+
+  Future<void> _updatePushNotifications(bool value) async {
+    if (_isUpdatingPushSetting) {
+      return;
+    }
+
+    setState(() {
+      _isUpdatingPushSetting = true;
+      _pushNotifications = value;
+    });
+
+    final isEnabled = await NotificationModule.pushNotificationService
+        .setPushNotificationsEnabled(value);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _pushNotifications = isEnabled;
+      _isUpdatingPushSetting = false;
+    });
+
+    _showPlaceholderMessage(
+      isEnabled
+          ? 'Push notifications are enabled.'
+          : value
+              ? 'Notification permission is required to enable push alerts.'
+              : 'Push notifications are turned off.',
+    );
+  }
+
+  Future<void> _updateInAppNotifications(bool value) async {
+    await NotificationModule.preferencesService.setInAppEnabled(value);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _inAppNotifications = value;
+    });
+
+    _showPlaceholderMessage(
+      value
+          ? 'In-app notifications are enabled.'
+          : 'In-app notifications are turned off.',
+    );
+  }
+
+  Future<void> _sendTestNotification() async {
+    if (_isSendingTestNotification) {
+      return;
+    }
+
+    if (kIsWeb) {
+      _showPlaceholderMessage(
+        'Test notifications are available only on Android and iOS.',
+      );
+      return;
+    }
+
+    setState(() {
+      _isSendingTestNotification = true;
+    });
+
+    final didShow = await NotificationModule.pushNotificationService
+        .showTestNotification();
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSendingTestNotification = false;
+    });
+
+    _showPlaceholderMessage(
+      didShow
+          ? 'Test notification sent.'
+          : 'Enable in-app notifications to send a test notification.',
     );
   }
 
@@ -42,7 +150,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
-      body: ListView(
+      body: _isLoadingPreferences
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         children: [
           const SectionHeader(title: 'Notifications'),
@@ -52,23 +162,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: 'Receive real-time alerts',
             leadingIcon: Icons.notifications_active_outlined,
             value: _pushNotifications,
-            onChanged: (value) {
-              setState(() {
-                _pushNotifications = value;
-              });
-            },
+            onChanged: _isUpdatingPushSetting
+                ? (_) {}
+                : _updatePushNotifications,
           ),
           const SizedBox(height: 12),
           ToggleTile(
-            title: 'Pull Notifications',
-            subtitle: 'Enable manual refresh for notifications',
-            leadingIcon: Icons.refresh_rounded,
-            value: _pullNotifications,
-            onChanged: (value) {
-              setState(() {
-                _pullNotifications = value;
-              });
-            },
+            title: 'In-App Notifications',
+            subtitle: 'Show notifications inside app',
+            leadingIcon: Icons.notifications_none_rounded,
+            value: _inAppNotifications,
+            onChanged: _updateInAppNotifications,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSendingTestNotification
+                  ? null
+                  : _sendTestNotification,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 56),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: Text(
+                _isSendingTestNotification
+                    ? 'Sending...'
+                    : 'Send Test Notification',
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           const SectionHeader(title: 'App Settings'),

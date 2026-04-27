@@ -44,6 +44,11 @@ class MoreScreen extends StatelessWidget {
             routeName: AppRoutes.profile,
           ),
           _MoreItem(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            routeName: AppRoutes.notifications,
+          ),
+          _MoreItem(
             icon: Icons.settings_rounded,
             title: 'Settings',
             routeName: AppRoutes.settings,
