@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/location_input_field.dart';
 import '../data/admin_dummy_data.dart';
+import '../models/location_picker_result.dart';
 import '../models/site_model.dart';
 import '../widgets/dropdown_selector.dart';
+import 'location_picker_screen.dart';
 
 class AddSiteScreen extends StatefulWidget {
   final SiteModel? site;
@@ -25,6 +28,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;
   late final TextEditingController _descriptionController;
+  double? _selectedLatitude;
+  double? _selectedLongitude;
   String? _selectedClientId;
   String? _selectedBranchId;
   String? _selectedManagerId;
@@ -40,6 +45,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
           : site?.location ?? '',
     );
     _descriptionController = TextEditingController(text: site?.description ?? '');
+    _selectedLatitude = site?.latitude;
+    _selectedLongitude = site?.longitude;
     _selectedClientId = site?.clientId;
     _selectedBranchId = site?.branchId;
     _selectedManagerId = site?.managerId;
@@ -51,6 +58,27 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     _locationController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LocationPickerResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          initialAddress: _locationController.text.trim(),
+          initialLatitude: _selectedLatitude,
+          initialLongitude: _selectedLongitude,
+        ),
+      ),
+    );
+
+    if (result == null) return;
+
+    setState(() {
+      _locationController.text = result.address;
+      _selectedLatitude = result.latitude;
+      _selectedLongitude = result.longitude;
+    });
   }
 
   void _saveSite() {
@@ -74,6 +102,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       managerId: managerId,
       location: location,
       address: address,
+      latitude: _selectedLatitude,
+      longitude: _selectedLongitude,
       description: _descriptionController.text.trim(),
       createdDate: widget.site?.createdDate ?? '26 Apr 2026',
       lastUpdated: '26 Apr 2026',
@@ -205,10 +235,26 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
               const SizedBox(height: 18),
               _buildFieldLabel('Location / Address'),
               const SizedBox(height: 8),
-              _buildTextField(
-                controller: _locationController,
-                hintText: 'Enter site address',
-                maxLines: 3,
+              FormField<String>(
+                initialValue: _locationController.text,
+                validator: (value) {
+                  if (_locationController.text.trim().isEmpty) {
+                    return 'Location is required';
+                  }
+                  return null;
+                },
+                builder: (field) {
+                  return LocationInputField(
+                    address: _locationController.text,
+                    errorText: field.errorText,
+                    onTap: () async {
+                      await _openLocationPicker();
+                      if (mounted) {
+                        field.didChange(_locationController.text);
+                      }
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 18),
               _buildFieldLabel('Description'),
@@ -254,13 +300,19 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     required String hintText,
     String? Function(String?)? validator,
     int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
       validator: validator,
       maxLines: maxLines,
+      readOnly: readOnly,
+      onTap: onTap,
       decoration: InputDecoration(
         hintText: hintText,
+        suffixIcon: suffixIcon,
         hintStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.neutral400,
         ),

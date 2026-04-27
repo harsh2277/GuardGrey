@@ -6,6 +6,8 @@ class SiteModel {
   final String managerId;
   final String location;
   final String address;
+  final double? latitude;
+  final double? longitude;
   final String description;
   final String createdDate;
   final String lastUpdated;
@@ -19,6 +21,8 @@ class SiteModel {
     required this.managerId,
     required this.location,
     this.address = '',
+    this.latitude,
+    this.longitude,
     this.description = '',
     this.createdDate = '',
     this.lastUpdated = '',
@@ -33,6 +37,8 @@ class SiteModel {
     String? managerId,
     String? location,
     String? address,
+    double? latitude,
+    double? longitude,
     String? description,
     String? createdDate,
     String? lastUpdated,
@@ -46,6 +52,8 @@ class SiteModel {
       managerId: managerId ?? this.managerId,
       location: location ?? this.location,
       address: address ?? this.address,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       description: description ?? this.description,
       createdDate: createdDate ?? this.createdDate,
       lastUpdated: lastUpdated ?? this.lastUpdated,

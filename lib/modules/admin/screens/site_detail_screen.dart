@@ -109,7 +109,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
           content: Text(
-            'Are you sure you want to delete this site?',
+            'This action cannot be undone.',
             style: AppTextStyles.bodyMedium,
           ),
           actions: [
@@ -135,6 +135,53 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     if (confirmed == true && mounted) {
       Navigator.pop(context, const SiteDetailResult(deleted: true));
     }
+  }
+
+  Future<void> _openActionsSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionSheetItem(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit Site',
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _openEditSite();
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildActionSheetItem(
+                  icon: Icons.delete_outline_rounded,
+                  label: 'Delete Site',
+                  textColor: AppColors.error,
+                  iconColor: AppColors.error,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _deleteSite();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<bool> _handleBackNavigation() async {
@@ -163,81 +210,24 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 20),
-                child: PopupMenuButton<String>(
-                  tooltip: 'More actions',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
-                  ),
-                  borderRadius: BorderRadius.circular(999),
-                  color: Colors.white,
-                  surfaceTintColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: AppColors.neutral200),
-                  ),
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _openEditSite();
-                    } else if (value == 'delete') {
-                      _deleteSite();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: AppColors.neutral700,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Edit Site',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.neutral800,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _openActionsSheet,
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.neutral100,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.neutral200),
                       ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.delete_outline_rounded,
-                            size: 18,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Delete Site',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: const Icon(
+                        Icons.more_vert_rounded,
+                        color: AppColors.neutral700,
+                        size: 20,
                       ),
-                    ),
-                  ],
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.neutral100,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.neutral200),
-                    ),
-                    child: const Icon(
-                      Icons.more_vert_rounded,
-                      color: AppColors.neutral700,
-                      size: 20,
                     ),
                   ),
                 ),
@@ -478,6 +468,44 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       height: 1,
       thickness: 1,
       color: AppColors.neutral200,
+    );
+  }
+
+  Widget _buildActionSheetItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color textColor = AppColors.neutral900,
+    Color iconColor = AppColors.neutral700,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.neutral50,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.neutral200),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: iconColor),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
