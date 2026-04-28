@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
-import 'package:guardgrey/modules/attendance/models/attendance_record.dart';
+import 'package:guardgrey/data/models/attendance_record.dart';
 
 class AttendanceTable extends StatelessWidget {
   const AttendanceTable({super.key, required this.records, this.onManagerTap});

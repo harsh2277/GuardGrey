@@ -5,10 +5,10 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 import 'package:guardgrey/core/theme/app_theme.dart';
+import 'package:guardgrey/features/notifications/services/notification_module.dart';
+import 'package:guardgrey/features/notifications/services/push_notification_service.dart';
 import 'package:guardgrey/firebase_options.dart';
 import 'package:guardgrey/routes/app_routes.dart';
-import 'package:guardgrey/services/notification/notification_module.dart';
-import 'package:guardgrey/services/notification/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

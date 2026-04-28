@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
-import 'package:guardgrey/modules/sites/models/site_model.dart';
+import 'package:guardgrey/data/models/site_model.dart';
 import 'admin_search_bar.dart';
 
 class SiteSelectorBottomSheet extends StatefulWidget {

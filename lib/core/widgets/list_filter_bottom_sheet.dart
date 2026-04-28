@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
-import 'package:guardgrey/services/firebase/firestore_admin_repository.dart';
+import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
 
 class ListFilterData {
   const ListFilterData({
@@ -334,9 +334,7 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
                           child: Text(
                             _selectedDate == null
                                 ? 'All dates'
-                                : FirestoreAdminRepository.formatDate(
-                                    _selectedDate,
-                                  ),
+                                : GuardGreyRepository.formatDate(_selectedDate),
                             style: AppTextStyles.bodyMedium.copyWith(
                               color: _selectedDate == null
                                   ? AppColors.neutral500
