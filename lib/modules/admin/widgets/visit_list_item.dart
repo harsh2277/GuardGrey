@@ -7,10 +7,7 @@ import '../models/visit_model.dart';
 class VisitListItem extends StatelessWidget {
   final VisitModel visit;
 
-  const VisitListItem({
-    super.key,
-    required this.visit,
-  });
+  const VisitListItem({super.key, required this.visit});
 
   Color get _statusColor {
     switch (visit.status) {
@@ -47,10 +44,12 @@ class VisitListItem extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.10),
+                  color: _statusColor.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -65,7 +64,7 @@ class VisitListItem extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            visit.dateTime,
+            '${visit.date} • ${visit.time}',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.neutral500,
               fontWeight: FontWeight.w600,

@@ -12,10 +12,7 @@ import '../widgets/site_selector_bottom_sheet.dart';
 import 'location_picker_screen.dart';
 
 class AddBranchScreen extends StatefulWidget {
-  const AddBranchScreen({
-    super.key,
-    this.branch,
-  });
+  const AddBranchScreen({super.key, this.branch});
 
   final BranchModel? branch;
 
@@ -27,10 +24,12 @@ class AddBranchScreen extends StatefulWidget {
 
 class _AddBranchScreenState extends State<AddBranchScreen> {
   final _formKey = GlobalKey<FormState>();
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
   late final TextEditingController _branchNameController;
   late final TextEditingController _cityController;
   late final TextEditingController _addressController;
+  late final TextEditingController _buildingFloorController;
   late final Set<String> _selectedSiteIds;
   late final Future<List<SiteModel>> _sitesFuture;
   double? _selectedLatitude;
@@ -43,6 +42,9 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     _branchNameController = TextEditingController(text: branch?.name ?? '');
     _cityController = TextEditingController(text: branch?.city ?? '');
     _addressController = TextEditingController(text: branch?.address ?? '');
+    _buildingFloorController = TextEditingController(
+      text: branch?.buildingFloor ?? '',
+    );
     _selectedLatitude = branch?.latitude;
     _selectedLongitude = branch?.longitude;
     _selectedSiteIds = (branch?.siteIds ?? const <String>[]).toSet();
@@ -54,6 +56,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     _branchNameController.dispose();
     _cityController.dispose();
     _addressController.dispose();
+    _buildingFloorController.dispose();
     super.dispose();
   }
 
@@ -81,6 +84,8 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
           initialAddress: _addressController.text.trim(),
           initialLatitude: _selectedLatitude,
           initialLongitude: _selectedLongitude,
+          initialLocationTitle: _cityController.text.trim(),
+          initialBuildingFloor: _buildingFloorController.text.trim(),
         ),
       ),
     );
@@ -91,7 +96,10 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
 
     setState(() {
       _addressController.text = result.address;
-      _cityController.text = _extractLocationLabel(result.address);
+      _cityController.text = result.locationTitle.isNotEmpty
+          ? result.locationTitle
+          : _extractLocationLabel(result.address);
+      _buildingFloorController.text = result.buildingFloor;
       _selectedLatitude = result.latitude;
       _selectedLongitude = result.longitude;
     });
@@ -108,6 +116,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
       name: _branchNameController.text.trim(),
       city: _cityController.text.trim(),
       address: _addressController.text.trim(),
+      buildingFloor: _buildingFloorController.text.trim(),
       siteIds: _selectedSiteIds.toList(growable: false),
       latitude: _selectedLatitude,
       longitude: _selectedLongitude,
@@ -229,8 +238,30 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                       );
                     },
                   ),
-                  if (_selectedLatitude != null && _selectedLongitude != null) ...[
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 18),
+                  _buildFieldLabel('Building / Floor'),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    controller: _buildingFloorController,
+                    hintText: 'Enter building / floor details',
+                  ),
+                  const SizedBox(height: 18),
+                  _buildFieldLabel('Address'),
+                  const SizedBox(height: 8),
+                  _buildTextField(
+                    controller: _addressController,
+                    hintText: 'Add address details',
+                    maxLines: 3,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Address is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  if (_selectedLatitude != null &&
+                      _selectedLongitude != null) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -301,7 +332,10 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             onPressed: () => _openSiteSelector(allSites),
-                            icon: const Icon(Icons.add_business_outlined, size: 18),
+                            icon: const Icon(
+                              Icons.add_business_outlined,
+                              size: 18,
+                            ),
                             label: const Text('Assign Sites'),
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(double.infinity, 52),
@@ -429,9 +463,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     return Center(
       child: Text(
         'Unable to load branch form data.',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

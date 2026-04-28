@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../modules/admin/models/attendance_record.dart';
 import '../../modules/admin/models/manager_model.dart';
 import '../../modules/admin/models/site_model.dart';
 import '../../modules/admin/services/firestore_admin_repository.dart';
+import '../../modules/admin/widgets/admin_search_bar.dart';
+import '../../modules/admin/widgets/attendance_table.dart';
 import '../../modules/admin/widgets/site_assignment_tab.dart';
 import '../../modules/admin/widgets/site_selector_bottom_sheet.dart';
 import '../../widgets/action_bottom_sheet.dart';
+import '../../widgets/list_filter_bottom_sheet.dart';
+import '../../widgets/surface_icon_button.dart';
 import 'add_manager_screen.dart';
 
 class ManagerDetailScreen extends StatefulWidget {
-  const ManagerDetailScreen({
-    super.key,
-    required this.manager,
-  });
+  const ManagerDetailScreen({super.key, required this.manager});
 
   final ManagerModel manager;
 
@@ -23,20 +25,51 @@ class ManagerDetailScreen extends StatefulWidget {
 }
 
 class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
-  late final TextEditingController _searchController;
-  String _searchQuery = '';
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
+  late final TextEditingController _siteSearchController;
+  late final TextEditingController _attendanceSearchController;
+  String _siteSearchQuery = '';
+  String _attendanceSearchQuery = '';
+  String? _attendanceStatus;
+  DateTime? _attendanceDate;
 
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController();
+    _siteSearchController = TextEditingController();
+    _attendanceSearchController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _siteSearchController.dispose();
+    _attendanceSearchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openAttendanceFilters() async {
+    final filters = await ListFilterBottomSheet.show(
+      context,
+      title: 'Filter Attendance',
+      searchHint: 'Refine by status, date, check-in...',
+      initialSearchQuery: _attendanceSearchQuery,
+      statusOptions: const ['Present', 'Absent', 'Late'],
+      initialStatus: _attendanceStatus,
+      initialDate: _attendanceDate,
+      showDateFilter: true,
+    );
+
+    if (filters == null) {
+      return;
+    }
+
+    _attendanceSearchController.text = filters.searchQuery;
+    setState(() {
+      _attendanceSearchQuery = filters.searchQuery;
+      _attendanceStatus = filters.status;
+      _attendanceDate = filters.date;
+    });
   }
 
   Future<void> _openEditManager(ManagerModel manager) async {
@@ -121,8 +154,9 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
     final selectedSites = await SiteSelectorBottomSheet.show(
       context,
       allSites: allSites,
-      initiallySelectedIds:
-          assignedSites.map((site) => site.id).toList(growable: false),
+      initiallySelectedIds: assignedSites
+          .map((site) => site.id)
+          .toList(growable: false),
     );
 
     if (selectedSites == null) {
@@ -151,7 +185,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
         appBar: AppBar(
@@ -162,6 +196,20 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
             'Manager Details',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Center(
+                child: SurfaceIconButton(
+                  icon: Icons.more_vert_rounded,
+                  size: 40,
+                  iconSize: 20,
+                  borderRadius: 20,
+                  onTap: () => _openActionsSheet(widget.manager),
+                ),
+              ),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(68),
             child: Padding(
@@ -192,6 +240,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
                   tabs: const [
                     Tab(text: 'Info'),
                     Tab(text: 'Sites'),
+                    Tab(text: 'Attendance'),
                   ],
                 ),
               ),
@@ -220,68 +269,52 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
                     .toList(growable: false);
                 final filteredSites = _filterSites(assignedSites);
 
-                return Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 20, top: 12),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _openActionsSheet(manager),
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.neutral100,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.neutral200),
-                              ),
-                              child: const Icon(
-                                Icons.more_vert_rounded,
-                                color: AppColors.neutral700,
-                                size: 20,
-                              ),
-                            ),
+                return StreamBuilder<List<AttendanceRecord>>(
+                  stream: _repository.watchAttendance(),
+                  builder: (context, attendanceSnapshot) {
+                    final allAttendance =
+                        attendanceSnapshot.data ?? const <AttendanceRecord>[];
+                    final filteredAttendance = _filterAttendance(
+                      allAttendance
+                          .where((record) {
+                            return record.managerId == manager.id ||
+                                record.name == manager.name;
+                          })
+                          .toList(growable: false),
+                    );
+
+                    return TabBarView(
+                      children: [
+                        _buildInfoTab(manager),
+                        SiteAssignmentTab(
+                          searchController: _siteSearchController,
+                          onSearchChanged: (value) {
+                            setState(() {
+                              _siteSearchQuery = value;
+                            });
+                          },
+                          onAddPressed: () => _openSiteSelector(
+                            manager: manager,
+                            allSites: allSites,
+                            assignedSites: assignedSites,
+                          ),
+                          addButtonLabel: 'Add Site',
+                          sites: filteredSites,
+                          countLabel:
+                              '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
+                          emptyMessage: _siteSearchQuery.trim().isEmpty
+                              ? 'No sites assigned to this manager yet.'
+                              : 'No assigned sites match your search.',
+                          onRemoveSite: (siteId) => _removeAssignedSite(
+                            manager: manager,
+                            assignedSites: assignedSites,
+                            siteId: siteId,
                           ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          _buildInfoTab(manager),
-                          SiteAssignmentTab(
-                            searchController: _searchController,
-                            onSearchChanged: (value) {
-                              setState(() {
-                                _searchQuery = value;
-                              });
-                            },
-                            onAddPressed: () => _openSiteSelector(
-                              manager: manager,
-                              allSites: allSites,
-                              assignedSites: assignedSites,
-                            ),
-                            addButtonLabel: 'Add Site',
-                            sites: filteredSites,
-                            countLabel:
-                                '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
-                            emptyMessage: _searchQuery.trim().isEmpty
-                                ? 'No sites assigned to this manager yet.'
-                                : 'No assigned sites match your search.',
-                            onRemoveSite: (siteId) => _removeAssignedSite(
-                              manager: manager,
-                              assignedSites: assignedSites,
-                              siteId: siteId,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                        _buildAttendanceTab(filteredAttendance),
+                      ],
+                    );
+                  },
                 );
               },
             );
@@ -292,15 +325,44 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
   }
 
   List<SiteModel> _filterSites(List<SiteModel> sites) {
-    final query = _searchQuery.trim().toLowerCase();
+    final query = _siteSearchQuery.trim().toLowerCase();
     if (query.isEmpty) {
       return sites;
     }
 
-    return sites.where((site) {
-      return site.name.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return sites
+        .where((site) {
+          return site.name.toLowerCase().contains(query) ||
+              site.location.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
+  }
+
+  List<AttendanceRecord> _filterAttendance(List<AttendanceRecord> records) {
+    final query = _attendanceSearchQuery.trim().toLowerCase();
+    if (query.isEmpty && _attendanceStatus == null && _attendanceDate == null) {
+      return records;
+    }
+
+    return records
+        .where((record) {
+          final matchesQuery =
+              query.isEmpty ||
+              record.status.toLowerCase().contains(query) ||
+              record.date.toLowerCase().contains(query) ||
+              record.checkIn.toLowerCase().contains(query) ||
+              record.checkOut.toLowerCase().contains(query) ||
+              record.siteName.toLowerCase().contains(query);
+          final matchesStatus =
+              _attendanceStatus == null ||
+              record.status.toLowerCase() == _attendanceStatus!.toLowerCase();
+          final matchesDate =
+              _attendanceDate == null ||
+              record.date ==
+                  FirestoreAdminRepository.formatDate(_attendanceDate);
+          return matchesQuery && matchesStatus && matchesDate;
+        })
+        .toList(growable: false);
   }
 
   Widget _buildInfoTab(ManagerModel manager) {
@@ -341,6 +403,28 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Last Location',
+          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          height: 112,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.neutral200),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            'Location preview unavailable',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.neutral500,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         const SizedBox(height: 20),
@@ -401,21 +485,56 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      color: AppColors.neutral200,
+  Widget _buildAttendanceTab(List<AttendanceRecord> records) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: AdminSearchBar(
+                  controller: _attendanceSearchController,
+                  height: 50,
+                  hintText: 'Search attendance...',
+                  onChanged: (value) {
+                    setState(() {
+                      _attendanceSearchQuery = value;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              SurfaceIconButton(
+                icon: Icons.tune_rounded,
+                onTap: _openAttendanceFilters,
+                backgroundColor: AppColors.primary600,
+                borderColor: AppColors.primary600,
+                iconColor: Colors.white,
+                borderRadius: 25,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: records.isEmpty
+                ? _buildUnavailableState('No attendance records available.')
+                : AttendanceTable(records: records),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildDivider() {
+    return const Divider(height: 1, thickness: 1, color: AppColors.neutral200);
   }
 
   Widget _buildUnavailableState(String message) {
     return Center(
       child: Text(
         message,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

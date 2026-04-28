@@ -8,4 +8,4 @@ script = ""
 [[actions]]
 name = "Run"
 icon = "run"
-command = "F:\\flutter_windows_3.41.7-stable\\flutter\\bin\\flutter.bat run -d chrome"
+command = "\"/Users/premparmar/Downloads/Harsh/Downloads/flutter/bin/flutter\" run -d 5LHIQ8RKSKCYUGZP"

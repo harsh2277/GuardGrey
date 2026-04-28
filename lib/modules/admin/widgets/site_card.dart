@@ -89,15 +89,6 @@ class SiteCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: site.isActive ? AppColors.success : AppColors.warning,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 12),
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 16,

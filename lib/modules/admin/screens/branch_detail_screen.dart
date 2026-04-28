@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/surface_icon_button.dart';
 import '../../../widgets/action_bottom_sheet.dart';
 import '../models/branch_model.dart';
 import '../models/site_model.dart';
@@ -12,10 +13,7 @@ import '../widgets/site_selector_bottom_sheet.dart';
 import 'add_branch_screen.dart';
 
 class BranchDetailScreen extends StatefulWidget {
-  const BranchDetailScreen({
-    super.key,
-    required this.branch,
-  });
+  const BranchDetailScreen({super.key, required this.branch});
 
   final BranchModel branch;
 
@@ -24,7 +22,8 @@ class BranchDetailScreen extends StatefulWidget {
 }
 
 class _BranchDetailScreenState extends State<BranchDetailScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
   late final TextEditingController _searchController;
   String _searchQuery = '';
 
@@ -43,9 +42,7 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
   Future<void> _openEditBranch(BranchModel branch) async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => AddBranchScreen(branch: branch),
-      ),
+      MaterialPageRoute(builder: (_) => AddBranchScreen(branch: branch)),
     );
   }
 
@@ -164,6 +161,20 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
             'Branch Details',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Center(
+                child: SurfaceIconButton(
+                  icon: Icons.more_vert_rounded,
+                  size: 40,
+                  iconSize: 20,
+                  borderRadius: 20,
+                  onTap: () => _openActionsSheet(widget.branch),
+                ),
+              ),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(68),
             child: Padding(
@@ -237,70 +248,35 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
                     .toSet()
                     .length;
 
-                return Column(
+                return TabBarView(
                   children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 20, top: 12),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _openActionsSheet(branch),
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: AppColors.neutral100,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.neutral200),
-                              ),
-                              child: const Icon(
-                                Icons.more_vert_rounded,
-                                color: AppColors.neutral700,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                    _buildInfoTab(
+                      branch: branch,
+                      assignedSites: assignedSites,
+                      createdAt: createdAt,
+                      updatedAt: updatedAt,
+                      totalManagersCount: totalManagersCount,
                     ),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          _buildInfoTab(
-                            branch: branch,
-                            assignedSites: assignedSites,
-                            createdAt: createdAt,
-                            updatedAt: updatedAt,
-                            totalManagersCount: totalManagersCount,
-                          ),
-                          SiteAssignmentTab(
-                            searchController: _searchController,
-                            onSearchChanged: (value) {
-                              setState(() {
-                                _searchQuery = value;
-                              });
-                            },
-                            onAddPressed: () => _openSiteSelector(
-                              branch: branch,
-                              allSites: allSites,
-                            ),
-                            addButtonLabel: 'Add Site',
-                            sites: filteredSites,
-                            countLabel:
-                                '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
-                            emptyMessage: _searchQuery.trim().isEmpty
-                                ? 'No sites assigned to this branch yet.'
-                                : 'No assigned sites match your search.',
-                            onRemoveSite: (siteId) => _removeAssignedSite(
-                              branch: branch,
-                              assignedSites: assignedSites,
-                              siteId: siteId,
-                            ),
-                          ),
-                        ],
+                    SiteAssignmentTab(
+                      searchController: _searchController,
+                      onSearchChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      onAddPressed: () =>
+                          _openSiteSelector(branch: branch, allSites: allSites),
+                      addButtonLabel: 'Add Site',
+                      sites: filteredSites,
+                      countLabel:
+                          '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
+                      emptyMessage: _searchQuery.trim().isEmpty
+                          ? 'No sites assigned to this branch yet.'
+                          : 'No assigned sites match your search.',
+                      onRemoveSite: (siteId) => _removeAssignedSite(
+                        branch: branch,
+                        assignedSites: assignedSites,
+                        siteId: siteId,
                       ),
                     ),
                   ],
@@ -325,6 +301,12 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
       name: (data['name'] as String? ?? '').trim(),
       city: (data['city'] as String? ?? '').trim(),
       address: (data['address'] as String? ?? '').trim(),
+      buildingFloor:
+          (data['buildingFloor'] as String? ??
+                  data['buildingName'] as String? ??
+                  data['floor'] as String? ??
+                  '')
+              .trim(),
       siteIds: siteIds,
       latitude: (data['latitude'] as num?)?.toDouble(),
       longitude: (data['longitude'] as num?)?.toDouble(),
@@ -337,10 +319,12 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
       return sites;
     }
 
-    return sites.where((site) {
-      return site.name.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return sites
+        .where((site) {
+          return site.name.toLowerCase().contains(query) ||
+              site.location.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   Widget _buildInfoTab({
@@ -360,9 +344,7 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
         const SizedBox(height: 24),
         Text(
           'Quick Stats',
-          style: AppTextStyles.title.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 16),
         _buildKpiSummaryCard(
@@ -373,9 +355,7 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
         const SizedBox(height: 24),
         Text(
           'Detailed Info',
-          style: AppTextStyles.title.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 14),
         _buildDetailedInfoCard(
@@ -387,7 +367,11 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
     );
   }
 
-  Widget _buildHeaderCard(BranchModel branch, int totalSites, String createdLabel) {
+  Widget _buildHeaderCard(
+    BranchModel branch,
+    int totalSites,
+    String createdLabel,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -459,10 +443,7 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
     );
   }
 
-  Widget _buildHeaderMetaChip({
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _buildHeaderMetaChip({required IconData icon, required String label}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -546,12 +527,15 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
           maxLines: compactValue ? 2 : 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: (compactValue ? AppTextStyles.bodyLarge : AppTextStyles.headingSmall)
-              .copyWith(
-            color: valueColor,
-            fontWeight: FontWeight.w700,
-            height: 1.1,
-          ),
+          style:
+              (compactValue
+                      ? AppTextStyles.bodyLarge
+                      : AppTextStyles.headingSmall)
+                  .copyWith(
+                    color: valueColor,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -597,6 +581,13 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
             branch.address.trim().isEmpty ? 'Not provided' : branch.address,
           ),
           _buildInfoDivider(),
+          _buildInfoRow(
+            'Building / Floor',
+            branch.buildingFloor.trim().isEmpty
+                ? 'Not provided'
+                : branch.buildingFloor,
+          ),
+          _buildInfoDivider(),
           _buildInfoRow('Created Date', createdLabel),
           _buildInfoDivider(),
           _buildInfoRow('Last Updated', updatedLabel),
@@ -638,20 +629,14 @@ class _BranchDetailScreenState extends State<BranchDetailScreen> {
   }
 
   Widget _buildInfoDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      color: AppColors.neutral200,
-    );
+    return const Divider(height: 1, thickness: 1, color: AppColors.neutral200);
   }
 
   Widget _buildUnavailableState(String message) {
     return Center(
       child: Text(
         message,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

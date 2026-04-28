@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../models/branch_model.dart';
+import '../models/client_model.dart';
+import '../models/site_model.dart';
 import '../services/firestore_admin_repository.dart';
 import '../widgets/admin_search_bar.dart';
 import '../widgets/branch_card.dart';
+import '../../../widgets/list_filter_bottom_sheet.dart';
+import '../../../widgets/filter_resettable.dart';
+import '../../../widgets/primary_floating_add_button.dart';
+import '../../../widgets/surface_icon_button.dart';
 import 'add_branch_screen.dart';
 import 'branch_detail_screen.dart';
 
@@ -15,15 +21,34 @@ class BranchesScreen extends StatefulWidget {
   State<BranchesScreen> createState() => _BranchesScreenState();
 }
 
-class _BranchesScreenState extends State<BranchesScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+class _BranchesScreenState extends State<BranchesScreen>
+    implements FilterResettable {
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
+  late final TextEditingController _searchController;
   String _searchQuery = '';
+  String? _selectedClientName;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _openAddBranch() async {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const AddBranchScreen()),
     );
+    if (mounted) {
+      resetFilters();
+    }
   }
 
   Future<void> _openEditBranch(BranchModel branch) async {
@@ -31,15 +56,19 @@ class _BranchesScreenState extends State<BranchesScreen> {
       context,
       MaterialPageRoute(builder: (_) => AddBranchScreen(branch: branch)),
     );
+    if (mounted) {
+      resetFilters();
+    }
   }
 
   Future<void> _openBranchDetails(BranchModel branch) async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => BranchDetailScreen(branch: branch),
-      ),
+      MaterialPageRoute(builder: (_) => BranchDetailScreen(branch: branch)),
     );
+    if (mounted) {
+      resetFilters();
+    }
   }
 
   Future<void> _deleteBranch(BranchModel branch) async {
@@ -83,6 +112,48 @@ class _BranchesScreenState extends State<BranchesScreen> {
     }
   }
 
+  Future<void> _openFilters(List<String> clientNames) async {
+    final filters = await ListFilterBottomSheet.show(
+      context,
+      title: 'Filter Branches',
+      searchHint: 'Refine by branch, city, address...',
+      initialSearchQuery: _searchQuery,
+      extraDropdowns: [
+        ListFilterDropdownField(
+          key: 'clientName',
+          label: 'Client Name',
+          options: clientNames,
+          initialValue: _selectedClientName,
+        ),
+      ],
+    );
+
+    if (filters == null) {
+      return;
+    }
+
+    _searchController.text = filters.searchQuery;
+    setState(() {
+      _searchQuery = filters.searchQuery;
+      _selectedClientName = filters.extraSelections['clientName'];
+    });
+  }
+
+  @override
+  void resetFilters() {
+    if (_searchQuery.isEmpty &&
+        _selectedClientName == null &&
+        _searchController.text.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _searchQuery = '';
+      _selectedClientName = null;
+      _searchController.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,14 +164,21 @@ class _BranchesScreenState extends State<BranchesScreen> {
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: PrimaryFloatingAddButton(
+        heroTag: 'branches-add-fab',
+        tooltip: 'Add Branch',
+        onPressed: _openAddBranch,
+      ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         child: Column(
           children: [
             Row(
               children: [
                 Expanded(
                   child: AdminSearchBar(
+                    controller: _searchController,
                     height: 50,
                     hintText: 'Search by branch location...',
                     onChanged: (value) {
@@ -110,18 +188,22 @@ class _BranchesScreenState extends State<BranchesScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _openAddBranch,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add Branch'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(136, 50),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
+                FutureBuilder<List<String>>(
+                  future: _branchClientNames(),
+                  builder: (context, snapshot) {
+                    final clientNames = snapshot.data ?? const <String>[];
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: SurfaceIconButton(
+                        icon: Icons.tune_rounded,
+                        onTap: () => _openFilters(clientNames),
+                        backgroundColor: AppColors.primary600,
+                        borderColor: AppColors.primary600,
+                        iconColor: Colors.white,
+                        borderRadius: 25,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -139,23 +221,41 @@ class _BranchesScreenState extends State<BranchesScreen> {
                     return _buildErrorState();
                   }
 
-                  final branches = _filterBranches(snapshot.data ?? const []);
-                  return branches.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.separated(
-                          itemCount: branches.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final branch = branches[index];
-                            return BranchCard(
-                              branch: branch,
-                              onTap: () => _openBranchDetails(branch),
-                              onEdit: () => _openEditBranch(branch),
-                              onDelete: () => _deleteBranch(branch),
-                            );
-                          },
-                        );
+                  return StreamBuilder<List<SiteModel>>(
+                    stream: _repository.watchSites(),
+                    builder: (context, sitesSnapshot) {
+                      final sites = sitesSnapshot.data ?? const <SiteModel>[];
+                      return StreamBuilder<List<ClientModel>>(
+                        stream: _repository.watchClients(),
+                        builder: (context, clientsSnapshot) {
+                          final clients =
+                              clientsSnapshot.data ?? const <ClientModel>[];
+                          final branches = _filterBranches(
+                            snapshot.data ?? const [],
+                            sites: sites,
+                            clients: clients,
+                          );
+                          return branches.isEmpty
+                              ? _buildEmptyState()
+                              : ListView.separated(
+                                  padding: const EdgeInsets.only(bottom: 120),
+                                  itemCount: branches.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final branch = branches[index];
+                                    return BranchCard(
+                                      branch: branch,
+                                      onTap: () => _openBranchDetails(branch),
+                                      onEdit: () => _openEditBranch(branch),
+                                      onDelete: () => _deleteBranch(branch),
+                                    );
+                                  },
+                                );
+                        },
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -165,17 +265,65 @@ class _BranchesScreenState extends State<BranchesScreen> {
     );
   }
 
-  List<BranchModel> _filterBranches(List<BranchModel> branches) {
-    if (_searchQuery.trim().isEmpty) {
+  List<BranchModel> _filterBranches(
+    List<BranchModel> branches, {
+    required List<SiteModel> sites,
+    required List<ClientModel> clients,
+  }) {
+    if (_searchQuery.trim().isEmpty && _selectedClientName == null) {
       return branches;
     }
 
     final query = _searchQuery.toLowerCase();
-    return branches.where((branch) {
-      return branch.name.toLowerCase().contains(query) ||
-          branch.city.toLowerCase().contains(query) ||
-          branch.address.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return branches
+        .where((branch) {
+          final branchClientNames = _branchClientNamesFor(
+            branch.id,
+            sites: sites,
+            clients: clients,
+          );
+          final matchesQuery =
+              branch.name.toLowerCase().contains(query) ||
+              branch.city.toLowerCase().contains(query) ||
+              branch.address.toLowerCase().contains(query) ||
+              branchClientNames.any(
+                (clientName) => clientName.toLowerCase().contains(query),
+              );
+          final matchesClient =
+              _selectedClientName == null ||
+              branchClientNames.contains(_selectedClientName);
+          return matchesQuery && matchesClient;
+        })
+        .toList(growable: false);
+  }
+
+  Future<List<String>> _branchClientNames() async {
+    final sites = await _repository.fetchSites();
+    final clients = await _repository.fetchClients();
+    final names = <String>{};
+    for (final site in sites) {
+      for (final client in clients) {
+        if (site.clientId == client.id) {
+          names.add(client.name);
+        }
+      }
+    }
+    final sortedNames = names.toList()..sort();
+    return sortedNames;
+  }
+
+  List<String> _branchClientNamesFor(
+    String branchId, {
+    required List<SiteModel> sites,
+    required List<ClientModel> clients,
+  }) {
+    final clientById = {for (final client in clients) client.id: client.name};
+    return sites
+        .where((site) => site.branchId == branchId)
+        .map((site) => clientById[site.clientId] ?? '')
+        .where((name) => name.trim().isNotEmpty)
+        .toSet()
+        .toList(growable: false);
   }
 
   Widget _buildEmptyState() {
@@ -218,9 +366,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
     return Center(
       child: Text(
         'Unable to load branches.',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

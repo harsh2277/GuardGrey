@@ -13,10 +13,7 @@ import '../widgets/dropdown_selector.dart';
 import 'location_picker_screen.dart';
 
 class AddSiteScreen extends StatefulWidget {
-  const AddSiteScreen({
-    super.key,
-    this.site,
-  });
+  const AddSiteScreen({super.key, this.site});
 
   final SiteModel? site;
 
@@ -28,9 +25,12 @@ class AddSiteScreen extends StatefulWidget {
 
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final _formKey = GlobalKey<FormState>();
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
   late final TextEditingController _nameController;
   late final TextEditingController _locationController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _buildingFloorController;
   late final TextEditingController _descriptionController;
   late final Future<List<ClientModel>> _clientsFuture;
   late final Future<List<BranchModel>> _branchesFuture;
@@ -46,11 +46,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     super.initState();
     final site = widget.site;
     _nameController = TextEditingController(text: site?.name ?? '');
-    _locationController = TextEditingController(
-      text: site?.address.isNotEmpty == true ? site!.address : site?.location ?? '',
+    _locationController = TextEditingController(text: site?.location ?? '');
+    _addressController = TextEditingController(text: site?.address ?? '');
+    _buildingFloorController = TextEditingController(
+      text: site?.buildingFloor ?? '',
     );
-    _descriptionController =
-        TextEditingController(text: site?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: site?.description ?? '',
+    );
     _selectedLatitude = site?.latitude;
     _selectedLongitude = site?.longitude;
     _selectedClientId = site?.clientId;
@@ -65,6 +68,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   void dispose() {
     _nameController.dispose();
     _locationController.dispose();
+    _addressController.dispose();
+    _buildingFloorController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -74,9 +79,11 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => LocationPickerScreen(
-          initialAddress: _locationController.text.trim(),
+          initialAddress: _addressController.text.trim(),
           initialLatitude: _selectedLatitude,
           initialLongitude: _selectedLongitude,
+          initialLocationTitle: _locationController.text.trim(),
+          initialBuildingFloor: _buildingFloorController.text.trim(),
         ),
       ),
     );
@@ -86,7 +93,11 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
 
     setState(() {
-      _locationController.text = result.address;
+      _locationController.text = result.locationTitle.isNotEmpty
+          ? result.locationTitle
+          : result.address;
+      _addressController.text = result.address;
+      _buildingFloorController.text = result.buildingFloor;
       _selectedLatitude = result.latitude;
       _selectedLongitude = result.longitude;
     });
@@ -109,16 +120,17 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       }
     }
 
-    final address = _locationController.text.trim();
-    final location = address.isEmpty ? branch?.city ?? '' : address;
+    final location = _locationController.text.trim();
+    final address = _addressController.text.trim();
     final site = SiteModel(
       id: widget.site?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text.trim(),
       clientId: clientId,
       branchId: branchId,
       managerId: managerId,
-      location: location,
+      location: location.isEmpty ? branch?.city ?? '' : location,
       address: address,
+      buildingFloor: _buildingFloorController.text.trim(),
       latitude: _selectedLatitude,
       longitude: _selectedLongitude,
       description: _descriptionController.text.trim(),
@@ -195,7 +207,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
               return FutureBuilder<List<ManagerModel>>(
                 future: _managersFuture,
                 builder: (context, managersSnapshot) {
-                  if (managersSnapshot.connectionState == ConnectionState.waiting) {
+                  if (managersSnapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (managersSnapshot.hasError) {
@@ -203,8 +216,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                   }
 
                   final clients = clientsSnapshot.data ?? const <ClientModel>[];
-                  final branches = branchesSnapshot.data ?? const <BranchModel>[];
-                  final managers = managersSnapshot.data ?? const <ManagerModel>[];
+                  final branches =
+                      branchesSnapshot.data ?? const <BranchModel>[];
+                  final managers =
+                      managersSnapshot.data ?? const <ManagerModel>[];
 
                   return SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -304,7 +319,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                             },
                           ),
                           const SizedBox(height: 18),
-                          _buildFieldLabel('Location / Address'),
+                          _buildFieldLabel('Location'),
                           const SizedBox(height: 8),
                           FormField<String>(
                             initialValue: _locationController.text,
@@ -325,6 +340,27 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                   }
                                 },
                               );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          _buildFieldLabel('Building / Floor'),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            controller: _buildingFloorController,
+                            hintText: 'Enter building / floor details',
+                          ),
+                          const SizedBox(height: 18),
+                          _buildFieldLabel('Address'),
+                          const SizedBox(height: 8),
+                          _buildTextField(
+                            controller: _addressController,
+                            hintText: 'Add address details',
+                            maxLines: 3,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Address is required';
+                              }
+                              return null;
                             },
                           ),
                           const SizedBox(height: 18),
@@ -419,9 +455,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     return Center(
       child: Text(
         'Unable to load site form data.',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

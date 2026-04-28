@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class FirestoreFieldDefinition {
   const FirestoreFieldDefinition({
@@ -70,6 +71,12 @@ class GuardGreyFirestoreSchema {
           source: 'Location',
         ),
         FirestoreFieldDefinition(
+          name: 'buildingFloor',
+          type: 'string',
+          required: false,
+          source: 'Building / Floor',
+        ),
+        FirestoreFieldDefinition(
           name: 'latitude',
           type: 'double?',
           required: false,
@@ -101,15 +108,12 @@ class GuardGreyFirestoreSchema {
           source: 'Branch detail metadata',
         ),
       ],
-      notes: 'List and detail screens search and display name, city, address, and assigned site count.',
+      notes:
+          'List and detail screens search and display name, city, address, and assigned site count.',
     ),
     FirestoreCollectionDefinition(
       name: clients,
-      sourceScreens: [
-        'ClientsScreen',
-        'AddClientScreen',
-        'ClientDetailScreen',
-      ],
+      sourceScreens: ['ClientsScreen', 'AddClientScreen', 'ClientDetailScreen'],
       fields: [
         FirestoreFieldDefinition(
           name: 'name',
@@ -156,7 +160,8 @@ class GuardGreyFirestoreSchema {
           source: 'Operational metadata',
         ),
       ],
-      notes: 'Client details and list cards depend on contact information, branch, and assigned site count.',
+      notes:
+          'Client details and list cards depend on contact information, branch, and assigned site count.',
     ),
     FirestoreCollectionDefinition(
       name: managers,
@@ -204,15 +209,12 @@ class GuardGreyFirestoreSchema {
           source: 'Operational metadata',
         ),
       ],
-      notes: 'Search and detail screens only surface identity, contact data, and assigned sites.',
+      notes:
+          'Search and detail screens only surface identity, contact data, and assigned sites.',
     ),
     FirestoreCollectionDefinition(
       name: sites,
-      sourceScreens: [
-        'SitesScreen',
-        'AddSiteScreen',
-        'SiteDetailScreen',
-      ],
+      sourceScreens: ['SitesScreen', 'AddSiteScreen', 'SiteDetailScreen'],
       fields: [
         FirestoreFieldDefinition(
           name: 'name',
@@ -251,7 +253,13 @@ class GuardGreyFirestoreSchema {
           name: 'address',
           type: 'string',
           required: true,
-          source: 'Location / Address',
+          source: 'Address',
+        ),
+        FirestoreFieldDefinition(
+          name: 'buildingFloor',
+          type: 'string',
+          required: false,
+          source: 'Building / Floor',
         ),
         FirestoreFieldDefinition(
           name: 'latitude',
@@ -290,7 +298,8 @@ class GuardGreyFirestoreSchema {
           source: 'Last updated shown on detail screen',
         ),
       ],
-      notes: 'Site is the central linking entity across branch, client, manager, attendance, and visits.',
+      notes:
+          'Site is the central linking entity across branch, client, manager, attendance, and visits.',
     ),
     FirestoreCollectionDefinition(
       name: attendance,
@@ -357,7 +366,8 @@ class GuardGreyFirestoreSchema {
           source: 'Operational metadata and notification trigger',
         ),
       ],
-      notes: 'Cloud Function already listens to attendance writes and derives notifications from status/check-in/check-out changes.',
+      notes:
+          'Cloud Function already listens to attendance writes and derives notifications from status/check-in/check-out changes.',
     ),
     FirestoreCollectionDefinition(
       name: siteVisits,
@@ -430,14 +440,12 @@ class GuardGreyFirestoreSchema {
           source: 'Operational metadata',
         ),
       ],
-      notes: 'Visit history is displayed under each site and already powers the visit notification function.',
+      notes:
+          'Visit history is displayed under each site and already powers the visit notification function.',
     ),
     FirestoreCollectionDefinition(
       name: notifications,
-      sourceScreens: [
-        'NotificationsScreen',
-        'NotificationRepository',
-      ],
+      sourceScreens: ['NotificationsScreen', 'NotificationRepository'],
       fields: [
         FirestoreFieldDefinition(
           name: 'title',
@@ -488,14 +496,12 @@ class GuardGreyFirestoreSchema {
           source: 'Cloud Function provenance',
         ),
       ],
-      notes: 'This collection is already live in the app via NotificationRepository.watchNotifications().',
+      notes:
+          'This collection is already live in the app via NotificationRepository.watchNotifications().',
     ),
     FirestoreCollectionDefinition(
       name: adminNotificationTokens,
-      sourceScreens: [
-        'PushNotificationService',
-        'NotificationRepository',
-      ],
+      sourceScreens: ['PushNotificationService', 'NotificationRepository'],
       fields: [
         FirestoreFieldDefinition(
           name: 'token',
@@ -528,15 +534,15 @@ class GuardGreyFirestoreSchema {
           source: 'NotificationRepository.upsertAdminToken',
         ),
       ],
-      notes: 'Operational collection for push delivery; intentionally not populated by seedDatabase().',
+      notes:
+          'Operational collection for push delivery; intentionally not populated by seedDatabase().',
     ),
   ];
 }
 
 class GuardGreyCollectionRefs {
-  GuardGreyCollectionRefs({
-    FirebaseFirestore? firestore,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  GuardGreyCollectionRefs({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -566,9 +572,8 @@ class GuardGreyCollectionRefs {
 }
 
 class GuardGreyFirestoreCrud {
-  GuardGreyFirestoreCrud({
-    FirebaseFirestore? firestore,
-  }) : _refs = GuardGreyCollectionRefs(firestore: firestore);
+  GuardGreyFirestoreCrud({FirebaseFirestore? firestore})
+    : _refs = GuardGreyCollectionRefs(firestore: firestore);
 
   final GuardGreyCollectionRefs _refs;
 
@@ -601,11 +606,11 @@ Future<void> seedDatabase({
   final db = firestore ?? FirebaseFirestore.instance;
   final refs = GuardGreyCollectionRefs(firestore: db);
 
-  print('Seeding started...');
-  print('Using Firestore app: ${db.app.name}');
+  debugPrint('Seeding started...');
+  debugPrint('Using Firestore app: ${db.app.name}');
 
   if (clearExisting) {
-    print('Clearing existing seed collections...');
+    debugPrint('Clearing existing seed collections...');
     await _clearSeedCollections(refs);
   }
 
@@ -619,7 +624,8 @@ Future<void> seedDatabase({
     'branch_ahmedabad': {
       'name': 'Ahmedabad',
       'city': 'Ahmedabad',
-      'address': 'SG Highway, Ahmedabad',
+      'address': 'Ashram Road, Navrangpura, Ahmedabad, Gujarat 380009',
+      'buildingFloor': 'Commerce House, Ground Floor',
       'latitude': 23.0395,
       'longitude': 72.5315,
       'siteIds': [
@@ -633,37 +639,33 @@ Future<void> seedDatabase({
     'branch_rajkot': {
       'name': 'Rajkot',
       'city': 'Rajkot',
-      'address': 'Kalawad Road, Rajkot',
+      'address': 'Kalawad Road, Nana Mava, Rajkot, Gujarat 360005',
+      'buildingFloor': 'Silver Heights, 2nd Floor',
       'latitude': 22.2901,
       'longitude': 70.7853,
-      'siteIds': [
-        'site_corporate_park',
-        'site_hospital_campus',
-      ],
+      'siteIds': ['site_corporate_park', 'site_hospital_campus'],
       'createdAt': rajkotCreatedAt,
       'updatedAt': now,
     },
     'branch_surat': {
       'name': 'Surat',
       'city': 'Surat',
-      'address': 'Ring Road, Surat',
+      'address': 'Ring Road, Sahara Darwaja, Surat, Gujarat 395002',
+      'buildingFloor': 'Textile Hub, 3rd Floor',
       'latitude': 21.1702,
       'longitude': 72.8311,
-      'siteIds': [
-        'site_logistics_hub',
-      ],
+      'siteIds': ['site_logistics_hub'],
       'createdAt': suratCreatedAt,
       'updatedAt': now,
     },
     'branch_vadodara': {
       'name': 'Vadodara',
       'city': 'Vadodara',
-      'address': 'Alkapuri, Vadodara',
+      'address': 'RC Dutt Road, Alkapuri, Vadodara, Gujarat 390007',
+      'buildingFloor': 'Centre Point, 4th Floor',
       'latitude': 22.3072,
       'longitude': 73.1812,
-      'siteIds': [
-        'site_industrial_plant',
-      ],
+      'siteIds': ['site_industrial_plant'],
       'createdAt': vadodaraCreatedAt,
       'updatedAt': now,
     },
@@ -673,10 +675,7 @@ Future<void> seedDatabase({
     'client_alpha_retail': {
       'name': 'Alpha Retail',
       'branchId': 'branch_ahmedabad',
-      'siteIds': [
-        'site_mall_security',
-        'site_industrial_plant',
-      ],
+      'siteIds': ['site_mall_security', 'site_industrial_plant'],
       'email': 'ops@alpharetail.com',
       'phone': '+91 98250 22001',
       'createdAt': _ts(2026, 1, 10, 12, 0),
@@ -685,10 +684,7 @@ Future<void> seedDatabase({
     'client_pinnacle_offices': {
       'name': 'Pinnacle Offices',
       'branchId': 'branch_ahmedabad',
-      'siteIds': [
-        'site_office_building',
-        'site_corporate_park',
-      ],
+      'siteIds': ['site_office_building', 'site_corporate_park'],
       'email': 'admin@pinnacleoffices.com',
       'phone': '+91 98250 22002',
       'createdAt': _ts(2026, 1, 14, 11, 10),
@@ -697,9 +693,7 @@ Future<void> seedDatabase({
     'client_careplus_health': {
       'name': 'CarePlus Health',
       'branchId': 'branch_rajkot',
-      'siteIds': [
-        'site_hospital_campus',
-      ],
+      'siteIds': ['site_hospital_campus'],
       'email': 'support@careplushealth.com',
       'phone': '+91 98250 22003',
       'createdAt': _ts(2026, 2, 6, 13, 25),
@@ -708,10 +702,7 @@ Future<void> seedDatabase({
     'client_prime_logistics': {
       'name': 'Prime Logistics',
       'branchId': 'branch_surat',
-      'siteIds': [
-        'site_warehouse_gate',
-        'site_logistics_hub',
-      ],
+      'siteIds': ['site_warehouse_gate', 'site_logistics_hub'],
       'email': 'control@primelogistics.com',
       'phone': '+91 98250 22004',
       'createdAt': _ts(2026, 1, 18, 16, 5),
@@ -724,10 +715,7 @@ Future<void> seedDatabase({
       'name': 'Ravi Patel',
       'email': 'ravi.patel@guardgrey.com',
       'phone': '+91 98765 11001',
-      'siteIds': [
-        'site_mall_security',
-        'site_industrial_plant',
-      ],
+      'siteIds': ['site_mall_security', 'site_industrial_plant'],
       'createdAt': _ts(2026, 1, 5, 9, 0),
       'updatedAt': now,
     },
@@ -735,9 +723,7 @@ Future<void> seedDatabase({
       'name': 'Heena Shah',
       'email': 'heena.shah@guardgrey.com',
       'phone': '+91 98765 11002',
-      'siteIds': [
-        'site_office_building',
-      ],
+      'siteIds': ['site_office_building'],
       'createdAt': _ts(2026, 1, 6, 9, 30),
       'updatedAt': now,
     },
@@ -745,10 +731,7 @@ Future<void> seedDatabase({
       'name': 'Amit Joshi',
       'email': 'amit.joshi@guardgrey.com',
       'phone': '+91 98765 11003',
-      'siteIds': [
-        'site_warehouse_gate',
-        'site_logistics_hub',
-      ],
+      'siteIds': ['site_warehouse_gate', 'site_logistics_hub'],
       'createdAt': _ts(2026, 1, 7, 10, 0),
       'updatedAt': now,
     },
@@ -756,9 +739,7 @@ Future<void> seedDatabase({
       'name': 'Sneha Trivedi',
       'email': 'sneha.trivedi@guardgrey.com',
       'phone': '+91 98765 11004',
-      'siteIds': [
-        'site_corporate_park',
-      ],
+      'siteIds': ['site_corporate_park'],
       'createdAt': _ts(2026, 1, 8, 10, 20),
       'updatedAt': now,
     },
@@ -766,9 +747,7 @@ Future<void> seedDatabase({
       'name': 'Kunal Mehta',
       'email': 'kunal.mehta@guardgrey.com',
       'phone': '+91 98765 11005',
-      'siteIds': [
-        'site_hospital_campus',
-      ],
+      'siteIds': ['site_hospital_campus'],
       'createdAt': _ts(2026, 1, 9, 10, 40),
       'updatedAt': now,
     },
@@ -782,10 +761,10 @@ Future<void> seedDatabase({
       'managerId': 'manager_ravi_patel',
       'location': 'Satellite, Ahmedabad',
       'address': 'Alpha One Mall, Satellite, Ahmedabad',
+      'buildingFloor': 'Alpha One Mall, Lower Ground Floor',
       'latitude': 23.0273,
       'longitude': 72.5069,
-      'description':
-          'Retail security point with day and night shift coverage.',
+      'description': 'Retail security point with day and night shift coverage.',
       'createdAt': _ts(2026, 1, 12, 9, 15),
       'updatedAt': _ts(2026, 4, 26, 18, 0),
       'isActive': true,
@@ -797,6 +776,7 @@ Future<void> seedDatabase({
       'managerId': 'manager_heena_shah',
       'location': 'Prahlad Nagar, Ahmedabad',
       'address': 'Pinnacle Business Park, Prahlad Nagar, Ahmedabad',
+      'buildingFloor': 'Pinnacle Business Park, 8th Floor',
       'latitude': 23.0115,
       'longitude': 72.5108,
       'description':
@@ -812,6 +792,7 @@ Future<void> seedDatabase({
       'managerId': 'manager_amit_joshi',
       'location': 'Naroda, Ahmedabad',
       'address': 'Naroda GIDC Entry Gate, Ahmedabad',
+      'buildingFloor': 'Warehouse Block A, Ground Floor',
       'latitude': 23.0716,
       'longitude': 72.6760,
       'description': 'Inbound and outbound vehicle log monitoring.',
@@ -826,10 +807,10 @@ Future<void> seedDatabase({
       'managerId': 'manager_sneha_trivedi',
       'location': 'Kalawad Road, Rajkot',
       'address': 'Corporate Avenue, Kalawad Road, Rajkot',
+      'buildingFloor': 'Corporate Avenue, 5th Floor',
       'latitude': 22.2868,
       'longitude': 70.7687,
-      'description':
-          'Corporate campus security desk and visitor control.',
+      'description': 'Corporate campus security desk and visitor control.',
       'createdAt': _ts(2026, 2, 3, 11, 35),
       'updatedAt': _ts(2026, 4, 26, 16, 5),
       'isActive': true,
@@ -841,10 +822,10 @@ Future<void> seedDatabase({
       'managerId': 'manager_kunal_mehta',
       'location': '150 Feet Ring Road, Rajkot',
       'address': 'Lifeline Hospital Campus, Rajkot',
+      'buildingFloor': 'OPD Wing, Ground Floor',
       'latitude': 22.2927,
       'longitude': 70.7794,
-      'description':
-          'Emergency gate and OPD entry coverage with 24/7 staff.',
+      'description': 'Emergency gate and OPD entry coverage with 24/7 staff.',
       'createdAt': _ts(2026, 2, 6, 7, 55),
       'updatedAt': _ts(2026, 4, 23, 9, 40),
       'isActive': true,
@@ -856,10 +837,10 @@ Future<void> seedDatabase({
       'managerId': 'manager_amit_joshi',
       'location': 'Sachin, Surat',
       'address': 'Freight Terminal, Sachin, Surat',
+      'buildingFloor': 'Dispatch Building, 1st Floor',
       'latitude': 21.0877,
       'longitude': 72.8811,
-      'description':
-          'Large dispatch yard with delivery gate checkpoints.',
+      'description': 'Large dispatch yard with delivery gate checkpoints.',
       'createdAt': _ts(2026, 3, 18, 14, 5),
       'updatedAt': _ts(2026, 4, 22, 11, 15),
       'isActive': true,
@@ -871,10 +852,10 @@ Future<void> seedDatabase({
       'managerId': 'manager_ravi_patel',
       'location': 'Makarpura, Vadodara',
       'address': 'Plant 4, Makarpura Industrial Estate, Vadodara',
+      'buildingFloor': 'Plant 4, Security Mezzanine',
       'latitude': 22.2772,
       'longitude': 73.1937,
-      'description':
-          'Manufacturing floor perimeter and plant gate security.',
+      'description': 'Manufacturing floor perimeter and plant gate security.',
       'createdAt': _ts(2026, 3, 22, 9, 20),
       'updatedAt': _ts(2026, 4, 21, 15, 25),
       'isActive': true,
@@ -1037,46 +1018,46 @@ Future<void> seedDatabase({
 
   final batch = db.batch();
 
-  print('Creating branches...');
+  debugPrint('Creating branches...');
   for (final entry in branches.entries) {
     batch.set(refs.branches.doc(entry.key), entry.value);
   }
 
-  print('Creating clients...');
+  debugPrint('Creating clients...');
   for (final entry in clients.entries) {
     batch.set(refs.clients.doc(entry.key), entry.value);
   }
 
-  print('Creating managers...');
+  debugPrint('Creating managers...');
   for (final entry in managers.entries) {
     batch.set(refs.managers.doc(entry.key), entry.value);
   }
 
-  print('Creating sites...');
+  debugPrint('Creating sites...');
   for (final entry in sites.entries) {
     batch.set(refs.sites.doc(entry.key), entry.value);
   }
 
-  print('Creating attendance records...');
+  debugPrint('Creating attendance records...');
   for (final entry in attendance.entries) {
     batch.set(refs.attendance.doc(entry.key), entry.value);
   }
 
-  print('Creating site visits...');
+  debugPrint('Creating site visits...');
   for (final entry in siteVisits.entries) {
     batch.set(refs.siteVisits.doc(entry.key), entry.value);
   }
 
-  print('Creating notifications...');
+  debugPrint('Creating notifications...');
   for (final entry in notifications.entries) {
     batch.set(refs.notifications.doc(entry.key), entry.value);
   }
 
   try {
     await batch.commit();
-    print('Seeding completed');
+    debugPrint('Seeding completed');
   } catch (error) {
-    print('Seeding failed: $error');
+    debugPrint('Seeding failed: $error');
     rethrow;
   }
 }
@@ -1108,12 +1089,6 @@ Future<void> _deleteAllDocs(
   await batch.commit();
 }
 
-Timestamp _ts(
-  int year,
-  int month,
-  int day, [
-  int hour = 0,
-  int minute = 0,
-]) {
+Timestamp _ts(int year, int month, int day, [int hour = 0, int minute = 0]) {
   return Timestamp.fromDate(DateTime(year, month, day, hour, minute));
 }

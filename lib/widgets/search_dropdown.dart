@@ -25,7 +25,7 @@ class SearchDropdown extends StatelessWidget {
     return Material(
       color: Colors.white,
       elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.08),
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(18),
       child: Container(
         constraints: const BoxConstraints(maxHeight: 260),
@@ -67,7 +67,7 @@ class SearchDropdown extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 shrinkWrap: true,
                 itemCount: results.length,
-                separatorBuilder: (_, __) => const Divider(
+                separatorBuilder: (context, index) => const Divider(
                   height: 1,
                   indent: 16,
                   endIndent: 16,

@@ -37,8 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     setState(() {
-      _pushNotifications =
-          NotificationModule.preferencesService.isPushEnabled;
+      _pushNotifications = NotificationModule.preferencesService.isPushEnabled;
       _inAppNotifications =
           NotificationModule.preferencesService.isInAppEnabled;
       _isLoadingPreferences = false;
@@ -83,8 +82,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       isEnabled
           ? 'Push notifications are enabled.'
           : value
-              ? 'Notification permission is required to enable push alerts.'
-              : 'Push notifications are turned off.',
+          ? 'Notification permission is required to enable push alerts.'
+          : 'Push notifications are turned off.',
     );
   }
 
@@ -150,24 +149,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       await seedDatabase(clearExisting: true);
-      print('Seed Completed');
       if (!mounted) {
         return;
       }
-      _showPlaceholderMessage('Database seeded successfully.');
+      _showPlaceholderMessage(
+        'Database cleared and seeded successfully with the latest schema.',
+      );
     } catch (error) {
-      print('Seed Error: $error');
       if (!mounted) {
         return;
       }
-      _showPlaceholderMessage('Unable to seed the database.');
+      _showPlaceholderMessage(
+        'Unable to clear and seed the database. Please try again.',
+      );
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(() {
+          _isSeedingDatabase = false;
+        });
       }
-      setState(() {
-        _isSeedingDatabase = false;
-      });
     }
   }
 
@@ -309,9 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _ValuePill extends StatelessWidget {
-  const _ValuePill({
-    required this.label,
-  });
+  const _ValuePill({required this.label});
 
   final String label;
 

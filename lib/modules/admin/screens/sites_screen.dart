@@ -9,6 +9,10 @@ import '../models/site_model.dart';
 import '../services/firestore_admin_repository.dart';
 import '../widgets/admin_search_bar.dart';
 import '../widgets/site_card.dart';
+import '../../../widgets/list_filter_bottom_sheet.dart';
+import '../../../widgets/filter_resettable.dart';
+import '../../../widgets/primary_floating_add_button.dart';
+import '../../../widgets/surface_icon_button.dart';
 import 'add_site_screen.dart';
 import 'site_detail_screen.dart';
 
@@ -19,24 +23,86 @@ class SitesScreen extends StatefulWidget {
   State<SitesScreen> createState() => _SitesScreenState();
 }
 
-class _SitesScreenState extends State<SitesScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+class _SitesScreenState extends State<SitesScreen> implements FilterResettable {
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
+  late final TextEditingController _searchController;
   String _searchQuery = '';
+  String? _selectedBranchName;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _openAddSite() async {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const AddSiteScreen()),
     );
+    if (mounted) {
+      resetFilters();
+    }
   }
 
   Future<void> _openSiteDetail(SiteModel site) async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => SiteDetailScreen(site: site),
-      ),
+      MaterialPageRoute(builder: (_) => SiteDetailScreen(site: site)),
     );
+    if (mounted) {
+      resetFilters();
+    }
+  }
+
+  Future<void> _openFilters(List<BranchModel> branches) async {
+    final filters = await ListFilterBottomSheet.show(
+      context,
+      title: 'Filter Sites',
+      searchHint: 'Refine by site, branch, manager...',
+      initialSearchQuery: _searchQuery,
+      extraDropdowns: [
+        ListFilterDropdownField(
+          key: 'branchName',
+          label: 'Branch',
+          options: branches.map((branch) => branch.name).toSet().toList()
+            ..sort(),
+          initialValue: _selectedBranchName,
+        ),
+      ],
+    );
+
+    if (filters == null) {
+      return;
+    }
+
+    _searchController.text = filters.searchQuery;
+    setState(() {
+      _searchQuery = filters.searchQuery;
+      _selectedBranchName = filters.extraSelections['branchName'];
+    });
+  }
+
+  @override
+  void resetFilters() {
+    if (_searchQuery.isEmpty &&
+        _selectedBranchName == null &&
+        _searchController.text.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _searchQuery = '';
+      _selectedBranchName = null;
+      _searchController.clear();
+    });
   }
 
   @override
@@ -52,14 +118,21 @@ class _SitesScreenState extends State<SitesScreen> {
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: PrimaryFloatingAddButton(
+        heroTag: 'sites-add-fab',
+        tooltip: 'Add Site',
+        onPressed: _openAddSite,
+      ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         child: Column(
           children: [
             Row(
               children: [
                 Expanded(
                   child: AdminSearchBar(
+                    controller: _searchController,
                     height: 50,
                     hintText: 'Search sites...',
                     onChanged: (value) {
@@ -69,18 +142,23 @@ class _SitesScreenState extends State<SitesScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _openAddSite,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add Site'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(118, 50),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
+                StreamBuilder<List<BranchModel>>(
+                  stream: _repository.watchBranches(),
+                  builder: (context, branchesSnapshot) {
+                    final branches =
+                        branchesSnapshot.data ?? const <BranchModel>[];
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: SurfaceIconButton(
+                        icon: Icons.tune_rounded,
+                        onTap: () => _openFilters(branches),
+                        backgroundColor: AppColors.primary600,
+                        borderColor: AppColors.primary600,
+                        iconColor: Colors.white,
+                        borderRadius: 25,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -89,7 +167,8 @@ class _SitesScreenState extends State<SitesScreen> {
               child: StreamBuilder<List<SiteModel>>(
                 stream: _repository.watchSites(),
                 builder: (context, sitesSnapshot) {
-                  if (sitesSnapshot.connectionState == ConnectionState.waiting &&
+                  if (sitesSnapshot.connectionState ==
+                          ConnectionState.waiting &&
                       !sitesSnapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -121,8 +200,11 @@ class _SitesScreenState extends State<SitesScreen> {
                               return sites.isEmpty
                                   ? _buildEmptyState()
                                   : ListView.separated(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 120,
+                                      ),
                                       itemCount: sites.length,
-                                      separatorBuilder: (_, __) =>
+                                      separatorBuilder: (context, index) =>
                                           const SizedBox(height: 12),
                                       itemBuilder: (context, index) {
                                         final site = sites[index];
@@ -158,20 +240,26 @@ class _SitesScreenState extends State<SitesScreen> {
     required List<ManagerModel> managers,
   }) {
     final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
+    if (query.isEmpty && _selectedBranchName == null) {
       return sites;
     }
 
-    return sites.where((site) {
-      final branchName = _branchName(branches, site.branchId);
-      final clientName = _clientName(clients, site.clientId);
-      final managerName = _managerName(managers, site.managerId);
-      return site.name.toLowerCase().contains(query) ||
-          branchName.toLowerCase().contains(query) ||
-          clientName.toLowerCase().contains(query) ||
-          managerName.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return sites
+        .where((site) {
+          final branchName = _branchName(branches, site.branchId);
+          final clientName = _clientName(clients, site.clientId);
+          final managerName = _managerName(managers, site.managerId);
+          final matchesQuery =
+              site.name.toLowerCase().contains(query) ||
+              branchName.toLowerCase().contains(query) ||
+              clientName.toLowerCase().contains(query) ||
+              managerName.toLowerCase().contains(query) ||
+              site.location.toLowerCase().contains(query);
+          final matchesBranch =
+              _selectedBranchName == null || branchName == _selectedBranchName;
+          return matchesQuery && matchesBranch;
+        })
+        .toList(growable: false);
   }
 
   String _branchName(List<BranchModel> branches, String branchId) {
@@ -241,9 +329,7 @@ class _SitesScreenState extends State<SitesScreen> {
     return Center(
       child: Text(
         'Unable to load sites.',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

@@ -7,6 +7,10 @@ import '../../modules/admin/models/client_model.dart';
 import '../../modules/admin/models/site_model.dart';
 import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/admin_search_bar.dart';
+import '../../widgets/filter_resettable.dart';
+import '../../widgets/list_filter_bottom_sheet.dart';
+import '../../widgets/primary_floating_add_button.dart';
+import '../../widgets/surface_icon_button.dart';
 import 'add_client_screen.dart';
 import 'client_detail_screen.dart';
 
@@ -17,24 +21,86 @@ class ClientsScreen extends StatefulWidget {
   State<ClientsScreen> createState() => _ClientsScreenState();
 }
 
-class _ClientsScreenState extends State<ClientsScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+class _ClientsScreenState extends State<ClientsScreen>
+    implements FilterResettable {
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
+  late final TextEditingController _searchController;
   String _searchQuery = '';
+  String? _selectedSiteName;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _openAddClient() async {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const AddClientScreen()),
     );
+    if (mounted) {
+      resetFilters();
+    }
   }
 
   Future<void> _openClientDetail(ClientModel client) async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(
-        builder: (_) => ClientDetailScreen(client: client),
-      ),
+      MaterialPageRoute(builder: (_) => ClientDetailScreen(client: client)),
     );
+    if (mounted) {
+      resetFilters();
+    }
+  }
+
+  Future<void> _openFilters(List<SiteModel> sites) async {
+    final filters = await ListFilterBottomSheet.show(
+      context,
+      title: 'Filter Clients',
+      searchHint: 'Refine by client, branch, phone...',
+      initialSearchQuery: _searchQuery,
+      extraDropdowns: [
+        ListFilterDropdownField(
+          key: 'siteName',
+          label: 'Site Name',
+          options: sites.map((site) => site.name).toSet().toList()..sort(),
+          initialValue: _selectedSiteName,
+        ),
+      ],
+    );
+
+    if (filters == null) {
+      return;
+    }
+
+    _searchController.text = filters.searchQuery;
+    setState(() {
+      _searchQuery = filters.searchQuery;
+      _selectedSiteName = filters.extraSelections['siteName'];
+    });
+  }
+
+  @override
+  void resetFilters() {
+    if (_searchQuery.isEmpty &&
+        _selectedSiteName == null &&
+        _searchController.text.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _searchQuery = '';
+      _selectedSiteName = null;
+      _searchController.clear();
+    });
   }
 
   @override
@@ -50,14 +116,21 @@ class _ClientsScreenState extends State<ClientsScreen> {
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: PrimaryFloatingAddButton(
+        heroTag: 'clients-add-fab',
+        tooltip: 'Add Client',
+        onPressed: _openAddClient,
+      ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         child: Column(
           children: [
             Row(
               children: [
                 Expanded(
                   child: AdminSearchBar(
+                    controller: _searchController,
                     height: 50,
                     hintText: 'Search clients...',
                     onChanged: (value) {
@@ -67,18 +140,22 @@ class _ClientsScreenState extends State<ClientsScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _openAddClient,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add Client'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(126, 50),
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
+                StreamBuilder<List<SiteModel>>(
+                  stream: _repository.watchSites(),
+                  builder: (context, sitesSnapshot) {
+                    final sites = sitesSnapshot.data ?? const <SiteModel>[];
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: SurfaceIconButton(
+                        icon: Icons.tune_rounded,
+                        onTap: () => _openFilters(sites),
+                        backgroundColor: AppColors.primary600,
+                        borderColor: AppColors.primary600,
+                        iconColor: Colors.white,
+                        borderRadius: 25,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -108,13 +185,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           final clients = _filterClients(
                             clientsSnapshot.data ?? const [],
                             branches: branches,
+                            sites: sites,
                           );
 
                           return clients.isEmpty
                               ? _buildEmptyState()
                               : ListView.separated(
+                                  padding: const EdgeInsets.only(bottom: 120),
                                   itemCount: clients.length,
-                                  separatorBuilder: (_, __) =>
+                                  separatorBuilder: (context, index) =>
                                       const SizedBox(height: 12),
                                   itemBuilder: (context, index) {
                                     final client = clients[index];
@@ -132,15 +211,15 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(18),
                                       child: InkWell(
-                                        borderRadius:
-                                            BorderRadius.circular(18),
+                                        borderRadius: BorderRadius.circular(18),
                                         onTap: () => _openClientDetail(client),
                                         child: Container(
                                           padding: const EdgeInsets.all(16),
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius:
-                                                BorderRadius.circular(18),
+                                            borderRadius: BorderRadius.circular(
+                                              18,
+                                            ),
                                             border: Border.all(
                                               color: AppColors.neutral200,
                                             ),
@@ -159,8 +238,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                                           AppColors.primary50,
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                        14,
-                                                      ),
+                                                            14,
+                                                          ),
                                                     ),
                                                     child: const Icon(
                                                       Icons.business_outlined,
@@ -175,17 +254,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                                       style: AppTextStyles
                                                           .bodyLarge
                                                           .copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        color: AppColors
-                                                            .neutral900,
-                                                      ),
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: AppColors
+                                                                .neutral900,
+                                                          ),
                                                     ),
                                                   ),
                                                   const Icon(
                                                     Icons.chevron_right_rounded,
-                                                    color:
-                                                        AppColors.neutral400,
+                                                    color: AppColors.neutral400,
                                                   ),
                                                 ],
                                               ),
@@ -194,19 +272,20 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                                 client.email,
                                                 style: AppTextStyles.bodyMedium
                                                     .copyWith(
-                                                  color:
-                                                      AppColors.neutral600,
-                                                ),
+                                                      color:
+                                                          AppColors.neutral600,
+                                                    ),
                                               ),
                                               const SizedBox(height: 2),
                                               Text(
                                                 client.phone,
                                                 style: AppTextStyles.bodySmall
                                                     .copyWith(
-                                                  color:
-                                                      AppColors.neutral500,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                                      color:
+                                                          AppColors.neutral500,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                               ),
                                               const SizedBox(height: 10),
                                               Row(
@@ -220,11 +299,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                                       style: AppTextStyles
                                                           .bodySmall
                                                           .copyWith(
-                                                        color: AppColors
-                                                            .neutral500,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
+                                                            color: AppColors
+                                                                .neutral500,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
                                                     ),
                                                   ),
                                                   const SizedBox(width: 12),
@@ -233,11 +312,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
                                                     style: AppTextStyles
                                                         .bodySmall
                                                         .copyWith(
-                                                      color: AppColors
-                                                          .primary600,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
+                                                          color: AppColors
+                                                              .primary600,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
                                                   ),
                                                 ],
                                               ),
@@ -264,19 +343,34 @@ class _ClientsScreenState extends State<ClientsScreen> {
   List<ClientModel> _filterClients(
     List<ClientModel> clients, {
     required List<BranchModel> branches,
+    required List<SiteModel> sites,
   }) {
     final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
+    if (query.isEmpty && _selectedSiteName == null) {
       return clients;
     }
 
-    return clients.where((client) {
-      final branchName = _branchName(branches, client.branchId);
-      return client.name.toLowerCase().contains(query) ||
-          client.email.toLowerCase().contains(query) ||
-          client.phone.toLowerCase().contains(query) ||
-          branchName.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return clients
+        .where((client) {
+          final branchName = _branchName(branches, client.branchId);
+          final assignedSiteNames = sites
+              .where((site) => site.clientId == client.id)
+              .map((site) => site.name)
+              .toList(growable: false);
+          final matchesQuery =
+              client.name.toLowerCase().contains(query) ||
+              client.email.toLowerCase().contains(query) ||
+              client.phone.toLowerCase().contains(query) ||
+              branchName.toLowerCase().contains(query) ||
+              assignedSiteNames.any(
+                (siteName) => siteName.toLowerCase().contains(query),
+              );
+          final matchesSite =
+              _selectedSiteName == null ||
+              assignedSiteNames.contains(_selectedSiteName);
+          return matchesQuery && matchesSite;
+        })
+        .toList(growable: false);
   }
 
   String _branchName(List<BranchModel> branches, String branchId) {
@@ -328,9 +422,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     return Center(
       child: Text(
         'Unable to load clients.',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

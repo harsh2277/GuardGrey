@@ -9,13 +9,11 @@ import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/site_assignment_tab.dart';
 import '../../modules/admin/widgets/site_selector_bottom_sheet.dart';
 import '../../widgets/action_bottom_sheet.dart';
+import '../../widgets/surface_icon_button.dart';
 import 'add_client_screen.dart';
 
 class ClientDetailScreen extends StatefulWidget {
-  const ClientDetailScreen({
-    super.key,
-    required this.client,
-  });
+  const ClientDetailScreen({super.key, required this.client});
 
   final ClientModel client;
 
@@ -24,7 +22,8 @@ class ClientDetailScreen extends StatefulWidget {
 }
 
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
   late final TextEditingController _searchController;
   String _searchQuery = '';
 
@@ -120,14 +119,18 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     required List<SiteModel> assignedSites,
   }) async {
     final branchSites = allSites
-        .where((site) => site.branchId == client.branchId || site.clientId == client.id)
+        .where(
+          (site) =>
+              site.branchId == client.branchId || site.clientId == client.id,
+        )
         .toList(growable: false);
 
     final selectedSites = await SiteSelectorBottomSheet.show(
       context,
       allSites: branchSites,
-      initiallySelectedIds:
-          assignedSites.map((site) => site.id).toList(growable: false),
+      initiallySelectedIds: assignedSites
+          .map((site) => site.id)
+          .toList(growable: false),
     );
 
     if (selectedSites == null) {
@@ -167,6 +170,20 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
             'Client Details',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Center(
+                child: SurfaceIconButton(
+                  icon: Icons.more_vert_rounded,
+                  size: 40,
+                  iconSize: 20,
+                  borderRadius: 20,
+                  onTap: () => _openActionsSheet(widget.client),
+                ),
+              ),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(68),
             child: Padding(
@@ -232,65 +249,32 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         branchesSnapshot.data ?? const <BranchModel>[];
                     final branchName = _branchName(branches, client.branchId);
 
-                    return Column(
+                    return TabBarView(
                       children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 20, top: 12),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () => _openActionsSheet(client),
-                                borderRadius: BorderRadius.circular(999),
-                                child: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.neutral100,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: AppColors.neutral200),
-                                  ),
-                                  child: const Icon(
-                                    Icons.more_vert_rounded,
-                                    color: AppColors.neutral700,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ),
+                        _buildInfoTab(client, branchName),
+                        SiteAssignmentTab(
+                          searchController: _searchController,
+                          onSearchChanged: (value) {
+                            setState(() {
+                              _searchQuery = value;
+                            });
+                          },
+                          onAddPressed: () => _openSiteSelector(
+                            client: client,
+                            allSites: allSites,
+                            assignedSites: assignedSites,
                           ),
-                        ),
-                        Expanded(
-                          child: TabBarView(
-                            children: [
-                              _buildInfoTab(client, branchName),
-                              SiteAssignmentTab(
-                                searchController: _searchController,
-                                onSearchChanged: (value) {
-                                  setState(() {
-                                    _searchQuery = value;
-                                  });
-                                },
-                                onAddPressed: () => _openSiteSelector(
-                                  client: client,
-                                  allSites: allSites,
-                                  assignedSites: assignedSites,
-                                ),
-                                addButtonLabel: 'Add Site',
-                                sites: filteredSites,
-                                countLabel:
-                                    '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
-                                emptyMessage: _searchQuery.trim().isEmpty
-                                    ? 'No sites assigned to this client yet.'
-                                    : 'No assigned sites match your search.',
-                                onRemoveSite: (siteId) => _removeAssignedSite(
-                                  client: client,
-                                  assignedSites: assignedSites,
-                                  siteId: siteId,
-                                ),
-                              ),
-                            ],
+                          addButtonLabel: 'Add Site',
+                          sites: filteredSites,
+                          countLabel:
+                              '${assignedSites.length} ${assignedSites.length == 1 ? 'site' : 'sites'} assigned',
+                          emptyMessage: _searchQuery.trim().isEmpty
+                              ? 'No sites assigned to this client yet.'
+                              : 'No assigned sites match your search.',
+                          onRemoveSite: (siteId) => _removeAssignedSite(
+                            client: client,
+                            assignedSites: assignedSites,
+                            siteId: siteId,
                           ),
                         ),
                       ],
@@ -311,10 +295,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
       return sites;
     }
 
-    return sites.where((site) {
-      return site.name.toLowerCase().contains(query) ||
-          site.location.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return sites
+        .where((site) {
+          return site.name.toLowerCase().contains(query) ||
+              site.location.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   String _branchName(List<BranchModel> branches, String branchId) {
@@ -435,20 +421,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   }
 
   Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      color: AppColors.neutral200,
-    );
+    return const Divider(height: 1, thickness: 1, color: AppColors.neutral200);
   }
 
   Widget _buildUnavailableState(String message) {
     return Center(
       child: Text(
         message,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }

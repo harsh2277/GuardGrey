@@ -3,6 +3,7 @@ class BranchModel {
   final String name;
   final String city;
   final String address;
+  final String buildingFloor;
   final List<String> siteIds;
   final double? latitude;
   final double? longitude;
@@ -12,6 +13,7 @@ class BranchModel {
     required this.name,
     required this.city,
     required this.address,
+    this.buildingFloor = '',
     required this.siteIds,
     this.latitude,
     this.longitude,
@@ -22,6 +24,7 @@ class BranchModel {
     String? name,
     String? city,
     String? address,
+    String? buildingFloor,
     List<String>? siteIds,
     double? latitude,
     double? longitude,
@@ -31,6 +34,7 @@ class BranchModel {
       name: name ?? this.name,
       city: city ?? this.city,
       address: address ?? this.address,
+      buildingFloor: buildingFloor ?? this.buildingFloor,
       siteIds: siteIds ?? this.siteIds,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,

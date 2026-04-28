@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../modules/admin/models/attendance_record.dart';
+import '../../modules/admin/models/manager_model.dart';
 import '../../modules/admin/services/firestore_admin_repository.dart';
 import '../../modules/admin/widgets/admin_search_bar.dart';
 import '../../modules/admin/widgets/attendance_table.dart';
 import '../../modules/admin/widgets/kpi_card.dart';
+import '../../widgets/filter_resettable.dart';
+import '../../widgets/list_filter_bottom_sheet.dart';
+import '../../widgets/surface_icon_button.dart';
+import '../more/manager_detail_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -15,9 +20,67 @@ class AttendanceScreen extends StatefulWidget {
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+class _AttendanceScreenState extends State<AttendanceScreen>
+    implements FilterResettable {
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
+  late final TextEditingController _searchController;
   String _searchQuery = '';
+  String? _selectedStatus;
+  DateTime? _selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openFilters() async {
+    final filters = await ListFilterBottomSheet.show(
+      context,
+      title: 'Filter Attendance',
+      searchHint: 'Refine by name, check-in, check-out...',
+      initialSearchQuery: _searchQuery,
+      statusOptions: const ['Present', 'Absent', 'Late'],
+      initialStatus: _selectedStatus,
+      initialDate: _selectedDate,
+      showDateFilter: true,
+    );
+
+    if (filters == null) {
+      return;
+    }
+
+    _searchController.text = filters.searchQuery;
+    setState(() {
+      _searchQuery = filters.searchQuery;
+      _selectedStatus = filters.status;
+      _selectedDate = filters.date;
+    });
+  }
+
+  @override
+  void resetFilters() {
+    if (_searchQuery.isEmpty &&
+        _selectedStatus == null &&
+        _selectedDate == null &&
+        _searchController.text.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _searchQuery = '';
+      _selectedStatus = null;
+      _selectedDate = null;
+      _searchController.clear();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,34 +109,45 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               return _buildErrorState();
             }
 
-            final allRecords = snapshot.data ?? const <AttendanceRecord>[];
-            final records = _filterRecords(allRecords);
-            final presentCount = allRecords
-                .where((record) => record.status == 'Present')
-                .length;
-            final absentCount = allRecords
-                .where((record) => record.status == 'Absent')
-                .length;
+            return StreamBuilder<List<ManagerModel>>(
+              stream: _repository.watchManagers(),
+              builder: (context, managersSnapshot) {
+                final managers =
+                    managersSnapshot.data ?? const <ManagerModel>[];
+                final allRecords = snapshot.data ?? const <AttendanceRecord>[];
+                final records = _filterRecords(allRecords);
+                final presentCount = allRecords
+                    .where((record) => record.status == 'Present')
+                    .length;
+                final absentCount = allRecords
+                    .where((record) => record.status == 'Absent')
+                    .length;
 
-            return records.isEmpty
-                ? Column(
-                    children: [
-                      _buildSearchBar(),
-                      const SizedBox(height: 16),
-                      _buildKpiRow(presentCount, absentCount),
-                      const SizedBox(height: 24),
-                      Expanded(child: _buildEmptyState()),
-                    ],
-                  )
-                : ListView(
-                    children: [
-                      _buildSearchBar(),
-                      const SizedBox(height: 16),
-                      _buildKpiRow(presentCount, absentCount),
-                      const SizedBox(height: 16),
-                      AttendanceTable(records: records),
-                    ],
-                  );
+                return records.isEmpty
+                    ? Column(
+                        children: [
+                          _buildSearchBar(),
+                          const SizedBox(height: 18),
+                          _buildKpiRow(presentCount, absentCount),
+                          const SizedBox(height: 24),
+                          Expanded(child: _buildEmptyState()),
+                        ],
+                      )
+                    : ListView(
+                        children: [
+                          _buildSearchBar(),
+                          const SizedBox(height: 18),
+                          _buildKpiRow(presentCount, absentCount),
+                          const SizedBox(height: 18),
+                          AttendanceTable(
+                            records: records,
+                            onManagerTap: (record) =>
+                                _openManagerFromAttendance(record, managers),
+                          ),
+                        ],
+                      );
+              },
+            );
           },
         ),
       ),
@@ -81,14 +155,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildSearchBar() {
-    return AdminSearchBar(
-      height: 50,
-      hintText: 'Search attendance...',
-      onChanged: (value) {
-        setState(() {
-          _searchQuery = value;
-        });
-      },
+    return Row(
+      children: [
+        Expanded(
+          child: AdminSearchBar(
+            controller: _searchController,
+            height: 50,
+            hintText: 'Search attendance...',
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        SurfaceIconButton(
+          icon: Icons.tune_rounded,
+          onTap: _openFilters,
+          backgroundColor: AppColors.primary600,
+          borderColor: AppColors.primary600,
+          iconColor: Colors.white,
+          borderRadius: 25,
+        ),
+      ],
     );
   }
 
@@ -120,17 +210,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   List<AttendanceRecord> _filterRecords(List<AttendanceRecord> records) {
     final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
+    if (query.isEmpty && _selectedStatus == null && _selectedDate == null) {
       return records;
     }
 
-    return records.where((record) {
-      return record.name.toLowerCase().contains(query) ||
-          record.status.toLowerCase().contains(query) ||
-          record.date.toLowerCase().contains(query) ||
-          record.checkIn.toLowerCase().contains(query) ||
-          record.checkOut.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return records
+        .where((record) {
+          final matchesQuery =
+              query.isEmpty ||
+              record.name.toLowerCase().contains(query) ||
+              record.status.toLowerCase().contains(query) ||
+              record.date.toLowerCase().contains(query) ||
+              record.checkIn.toLowerCase().contains(query) ||
+              record.checkOut.toLowerCase().contains(query);
+          final matchesStatus =
+              _selectedStatus == null ||
+              record.status.toLowerCase() == _selectedStatus!.toLowerCase();
+          final matchesDate =
+              _selectedDate == null ||
+              record.date == FirestoreAdminRepository.formatDate(_selectedDate);
+          return matchesQuery && matchesStatus && matchesDate;
+        })
+        .toList(growable: false);
   }
 
   Widget _buildEmptyState() {
@@ -173,10 +274,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Center(
       child: Text(
         'Unable to load attendance.',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
+  }
+
+  void _openManagerFromAttendance(
+    AttendanceRecord record,
+    List<ManagerModel> managers,
+  ) {
+    ManagerModel? selectedManager;
+    for (final manager in managers) {
+      if (manager.id == record.managerId || manager.name == record.name) {
+        selectedManager = manager;
+        break;
+      }
+    }
+
+    if (selectedManager == null) {
+      return;
+    }
+
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ManagerDetailScreen(manager: selectedManager!),
+      ),
+    ).then((_) {
+      if (mounted) {
+        resetFilters();
+      }
+    });
   }
 }

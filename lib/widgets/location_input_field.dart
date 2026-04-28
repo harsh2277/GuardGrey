@@ -32,7 +32,7 @@ class LocationInputField extends StatelessWidget {
               isEmpty: !hasAddress,
               expands: false,
               decoration: InputDecoration(
-                hintText: 'Select site address',
+                hintText: 'Select location',
                 prefixIcon: const Icon(
                   Icons.location_on_outlined,
                   color: AppColors.neutral500,
@@ -82,12 +82,13 @@ class LocationInputField extends StatelessWidget {
                 ),
               ),
               child: Text(
-                hasAddress ? address!.trim() : 'Select site address',
+                hasAddress ? address!.trim() : 'Select location',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color:
-                      hasAddress ? AppColors.neutral800 : AppColors.neutral400,
+                  color: hasAddress
+                      ? AppColors.neutral800
+                      : AppColors.neutral400,
                 ),
               ),
             ),

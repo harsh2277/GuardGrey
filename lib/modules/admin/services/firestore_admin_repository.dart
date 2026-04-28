@@ -9,12 +9,10 @@ import '../models/visit_model.dart';
 import 'firestore_seed_service.dart';
 
 class FirestoreAdminRepository {
-  FirestoreAdminRepository._({
-    FirebaseFirestore? firestore,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreAdminRepository._({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  static final FirestoreAdminRepository instance =
-      FirestoreAdminRepository._();
+  static final FirestoreAdminRepository instance = FirestoreAdminRepository._();
 
   final FirebaseFirestore _firestore;
 
@@ -32,10 +30,12 @@ class FirestoreAdminRepository {
       _firestore.collection(GuardGreyFirestoreSchema.siteVisits);
 
   Stream<List<BranchModel>> watchBranches() {
-    return _branches.orderBy('name').snapshots().map(
-          (snapshot) => snapshot.docs
-              .map(_branchFromDoc)
-              .toList(growable: false),
+    return _branches
+        .orderBy('name')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(_branchFromDoc).toList(growable: false),
         );
   }
 
@@ -43,15 +43,19 @@ class FirestoreAdminRepository {
     return _branches.doc(id).snapshots().map(_branchFromSnapshot);
   }
 
-  Stream<DocumentSnapshot<Map<String, dynamic>>> watchBranchDocument(String id) {
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchBranchDocument(
+    String id,
+  ) {
     return _branches.doc(id).snapshots();
   }
 
   Stream<List<ClientModel>> watchClients() {
-    return _clients.orderBy('name').snapshots().map(
-          (snapshot) => snapshot.docs
-              .map(_clientFromDoc)
-              .toList(growable: false),
+    return _clients
+        .orderBy('name')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(_clientFromDoc).toList(growable: false),
         );
   }
 
@@ -60,10 +64,12 @@ class FirestoreAdminRepository {
   }
 
   Stream<List<ManagerModel>> watchManagers() {
-    return _managers.orderBy('name').snapshots().map(
-          (snapshot) => snapshot.docs
-              .map(_managerFromDoc)
-              .toList(growable: false),
+    return _managers
+        .orderBy('name')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(_managerFromDoc).toList(growable: false),
         );
   }
 
@@ -72,10 +78,11 @@ class FirestoreAdminRepository {
   }
 
   Stream<List<SiteModel>> watchSites() {
-    return _sites.orderBy('name').snapshots().map(
-          (snapshot) => snapshot.docs
-              .map(_siteFromDoc)
-              .toList(growable: false),
+    return _sites
+        .orderBy('name')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map(_siteFromDoc).toList(growable: false),
         );
   }
 
@@ -84,10 +91,12 @@ class FirestoreAdminRepository {
   }
 
   Stream<List<AttendanceRecord>> watchAttendance() {
-    return _attendance.orderBy('date', descending: true).snapshots().map(
-          (snapshot) => snapshot.docs
-              .map(_attendanceFromDoc)
-              .toList(growable: false),
+    return _attendance
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(_attendanceFromDoc).toList(growable: false),
         );
   }
 
@@ -97,9 +106,8 @@ class FirestoreAdminRepository {
         .orderBy('date', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs
-              .map(_visitFromDoc)
-              .toList(growable: false),
+          (snapshot) =>
+              snapshot.docs.map(_visitFromDoc).toList(growable: false),
         );
   }
 
@@ -132,41 +140,44 @@ class FirestoreAdminRepository {
     final removedSiteIds = previousSiteIds.difference(nextSiteIds);
 
     final batch = _firestore.batch();
-    batch.set(
-      docRef,
-      {
-        'name': branch.name,
-        'city': branch.city,
+    batch.set(docRef, {
+      'name': branch.name,
+      'city': branch.city,
+      'address': branch.address,
+      'buildingFloor': branch.buildingFloor,
+      'latitude': branch.latitude,
+      'longitude': branch.longitude,
+      'location': {
+        'lat': branch.latitude,
+        'lng': branch.longitude,
         'address': branch.address,
-        'latitude': branch.latitude,
-        'longitude': branch.longitude,
-        'siteIds': branch.siteIds,
-        if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'buildingFloor': branch.buildingFloor,
       },
-      SetOptions(merge: true),
-    );
+      'siteIds': branch.siteIds,
+      if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (previous.exists) {
+      batch.update(docRef, {
+        'buildingName': FieldValue.delete(),
+        'floor': FieldValue.delete(),
+        'location.buildingName': FieldValue.delete(),
+        'location.floor': FieldValue.delete(),
+      });
+    }
 
     for (final siteId in branch.siteIds) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'branchId': branch.id,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'branchId': branch.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     for (final siteId in removedSiteIds) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'branchId': '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'branchId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -179,14 +190,10 @@ class FirestoreAdminRepository {
     final batch = _firestore.batch();
 
     for (final siteId in branch?.siteIds ?? const <String>[]) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'branchId': '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'branchId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     batch.delete(docRef);
@@ -202,41 +209,29 @@ class FirestoreAdminRepository {
     final removedSiteIds = previousSiteIds.difference(nextSiteIds);
 
     final batch = _firestore.batch();
-    batch.set(
-      docRef,
-      {
-        'name': client.name,
-        'email': client.email,
-        'phone': client.phone,
-        'branchId': client.branchId,
-        'siteIds': client.siteIds,
-        if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(docRef, {
+      'name': client.name,
+      'email': client.email,
+      'phone': client.phone,
+      'branchId': client.branchId,
+      'siteIds': client.siteIds,
+      if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     for (final siteId in client.siteIds) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'clientId': client.id,
-          'branchId': client.branchId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'clientId': client.id,
+        'branchId': client.branchId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     for (final siteId in removedSiteIds) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'clientId': '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'clientId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -249,14 +244,10 @@ class FirestoreAdminRepository {
     final batch = _firestore.batch();
 
     for (final siteId in client?.siteIds ?? const <String>[]) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'clientId': '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'clientId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     batch.delete(docRef);
@@ -272,39 +263,27 @@ class FirestoreAdminRepository {
     final removedSiteIds = previousSiteIds.difference(nextSiteIds);
 
     final batch = _firestore.batch();
-    batch.set(
-      docRef,
-      {
-        'name': manager.name,
-        'email': manager.email,
-        'phone': manager.phone,
-        'siteIds': manager.siteIds,
-        if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(docRef, {
+      'name': manager.name,
+      'email': manager.email,
+      'phone': manager.phone,
+      'siteIds': manager.siteIds,
+      if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     for (final siteId in manager.siteIds) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'managerId': manager.id,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'managerId': manager.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     for (final siteId in removedSiteIds) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'managerId': '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'managerId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -317,14 +296,10 @@ class FirestoreAdminRepository {
     final batch = _firestore.batch();
 
     for (final siteId in manager?.siteIds ?? const <String>[]) {
-      batch.set(
-        _sites.doc(siteId),
-        {
-          'managerId': '',
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_sites.doc(siteId), {
+        'managerId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     batch.delete(docRef);
@@ -337,24 +312,35 @@ class FirestoreAdminRepository {
     final previousModel = _siteFromSnapshot(previous);
 
     final batch = _firestore.batch();
-    batch.set(
-      docRef,
-      {
-        'name': site.name,
-        'clientId': site.clientId,
-        'branchId': site.branchId,
-        'managerId': site.managerId,
-        'location': site.location,
+    batch.set(docRef, {
+      'name': site.name,
+      'clientId': site.clientId,
+      'branchId': site.branchId,
+      'managerId': site.managerId,
+      'location': site.location,
+      'address': site.address,
+      'buildingFloor': site.buildingFloor,
+      'latitude': site.latitude,
+      'longitude': site.longitude,
+      'locationMeta': {
+        'lat': site.latitude,
+        'lng': site.longitude,
         'address': site.address,
-        'latitude': site.latitude,
-        'longitude': site.longitude,
-        'description': site.description,
-        'isActive': site.isActive,
-        if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'buildingFloor': site.buildingFloor,
       },
-      SetOptions(merge: true),
-    );
+      'description': site.description,
+      'isActive': site.isActive,
+      if (!previous.exists) 'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (previous.exists) {
+      batch.update(docRef, {
+        'buildingName': FieldValue.delete(),
+        'floor': FieldValue.delete(),
+        'locationMeta.buildingName': FieldValue.delete(),
+        'locationMeta.floor': FieldValue.delete(),
+      });
+    }
 
     _syncSiteMembership(
       batch: batch,
@@ -411,8 +397,9 @@ class FirestoreAdminRepository {
       );
     }
 
-    final visitSnapshot =
-        await _siteVisits.where('siteId', isEqualTo: siteId).get();
+    final visitSnapshot = await _siteVisits
+        .where('siteId', isEqualTo: siteId)
+        .get();
     for (final visitDoc in visitSnapshot.docs) {
       batch.delete(visitDoc.reference);
     }
@@ -431,27 +418,18 @@ class FirestoreAdminRepository {
     final normalizedPrevious = (previousOwnerId ?? '').trim();
     final normalizedNext = nextOwnerId.trim();
 
-    if (normalizedPrevious.isNotEmpty &&
-        normalizedPrevious != normalizedNext) {
-      batch.set(
-        collection.doc(normalizedPrevious),
-        {
-          'siteIds': FieldValue.arrayRemove([siteId]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+    if (normalizedPrevious.isNotEmpty && normalizedPrevious != normalizedNext) {
+      batch.set(collection.doc(normalizedPrevious), {
+        'siteIds': FieldValue.arrayRemove([siteId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
 
     if (normalizedNext.isNotEmpty) {
-      batch.set(
-        collection.doc(normalizedNext),
-        {
-          'siteIds': FieldValue.arrayUnion([siteId]),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(collection.doc(normalizedNext), {
+        'siteIds': FieldValue.arrayUnion([siteId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     }
   }
 
@@ -469,14 +447,26 @@ class FirestoreAdminRepository {
   }
 
   BranchModel _branchFromMap(String id, Map<String, dynamic> data) {
+    final location = _locationMap(data['location']);
     return BranchModel(
       id: id,
       name: (data['name'] as String? ?? '').trim(),
       city: (data['city'] as String? ?? '').trim(),
-      address: (data['address'] as String? ?? '').trim(),
+      address: _stringValue(data['address']).isNotEmpty
+          ? _stringValue(data['address'])
+          : _stringValue(location['address']),
+      buildingFloor: _stringValue(data['buildingFloor']).isNotEmpty
+          ? _stringValue(data['buildingFloor'])
+          : _firstNonEmpty(
+              _stringValue(data['buildingName']),
+              _stringValue(data['floor']),
+              _stringValue(location['buildingFloor']),
+              _stringValue(location['buildingName']),
+              _stringValue(location['floor']),
+            ),
       siteIds: _stringList(data['siteIds']),
-      latitude: _toDouble(data['latitude']),
-      longitude: _toDouble(data['longitude']),
+      latitude: _toDouble(data['latitude']) ?? _toDouble(location['lat']),
+      longitude: _toDouble(data['longitude']) ?? _toDouble(location['lng']),
     );
   }
 
@@ -545,7 +535,10 @@ class FirestoreAdminRepository {
   SiteModel _siteFromMap(String id, Map<String, dynamic> data) {
     final createdAt = _toDateTime(data['createdAt']);
     final updatedAt = _toDateTime(data['updatedAt']);
-    final address = (data['address'] as String? ?? '').trim();
+    final locationMeta = _locationMap(data['locationMeta']);
+    final address = _stringValue(data['address']).isNotEmpty
+        ? _stringValue(data['address'])
+        : _stringValue(locationMeta['address']);
     final location = (data['location'] as String? ?? '').trim();
 
     return SiteModel(
@@ -556,8 +549,17 @@ class FirestoreAdminRepository {
       managerId: (data['managerId'] as String? ?? '').trim(),
       location: location.isNotEmpty ? location : address,
       address: address,
-      latitude: _toDouble(data['latitude']),
-      longitude: _toDouble(data['longitude']),
+      buildingFloor: _stringValue(data['buildingFloor']).isNotEmpty
+          ? _stringValue(data['buildingFloor'])
+          : _firstNonEmpty(
+              _stringValue(data['buildingName']),
+              _stringValue(data['floor']),
+              _stringValue(locationMeta['buildingFloor']),
+              _stringValue(locationMeta['buildingName']),
+              _stringValue(locationMeta['floor']),
+            ),
+      latitude: _toDouble(data['latitude']) ?? _toDouble(locationMeta['lat']),
+      longitude: _toDouble(data['longitude']) ?? _toDouble(locationMeta['lng']),
       description: (data['description'] as String? ?? '').trim(),
       createdDate: createdAt == null ? '' : formatDate(createdAt),
       lastUpdated: updatedAt == null ? '' : formatDate(updatedAt),
@@ -571,8 +573,11 @@ class FirestoreAdminRepository {
     final data = doc.data();
     return AttendanceRecord(
       id: doc.id,
+      managerId: (data['managerId'] as String? ?? '').trim(),
       name: (data['managerName'] as String? ?? data['name'] as String? ?? '')
           .trim(),
+      siteId: (data['siteId'] as String? ?? '').trim(),
+      siteName: (data['siteName'] as String? ?? '').trim(),
       status: (data['status'] as String? ?? '').trim(),
       date: formatDate(_toDateTime(data['date'])),
       checkIn: formatTimeOrDash(_toDateTime(data['checkInAt'])),
@@ -585,6 +590,8 @@ class FirestoreAdminRepository {
     return VisitModel(
       id: doc.id,
       siteId: (data['siteId'] as String? ?? '').trim(),
+      managerId: (data['managerId'] as String? ?? '').trim(),
+      siteName: (data['siteName'] as String? ?? '').trim(),
       managerName: (data['managerName'] as String? ?? '').trim(),
       date: formatDate(_toDateTime(data['date'])),
       day: (data['day'] as String? ?? '').trim(),
@@ -612,6 +619,35 @@ class FirestoreAdminRepository {
       return double.tryParse(value.trim());
     }
     return null;
+  }
+
+  Map<String, dynamic> _locationMap(Object? value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return value.map((key, mapValue) => MapEntry(key.toString(), mapValue));
+    }
+    return const <String, dynamic>{};
+  }
+
+  String _stringValue(Object? value) {
+    return value is String ? value.trim() : '';
+  }
+
+  String _firstNonEmpty(
+    String first, [
+    String second = '',
+    String third = '',
+    String fourth = '',
+    String fifth = '',
+  ]) {
+    for (final value in [first, second, third, fourth, fifth]) {
+      if (value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return '';
   }
 
   static DateTime? _toDateTime(Object? value) {
@@ -658,8 +694,8 @@ class FirestoreAdminRepository {
     final hour = date.hour == 0
         ? 12
         : date.hour > 12
-            ? date.hour - 12
-            : date.hour;
+        ? date.hour - 12
+        : date.hour;
     final period = date.hour >= 12 ? 'PM' : 'AM';
     return '${hour.toString().padLeft(2, '0')}:'
         '${date.minute.toString().padLeft(2, '0')} $period';

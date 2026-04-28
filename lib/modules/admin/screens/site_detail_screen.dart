@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../widgets/action_bottom_sheet.dart';
+import '../../../widgets/surface_icon_button.dart';
 import '../models/branch_model.dart';
 import '../models/client_model.dart';
 import '../models/manager_model.dart';
@@ -14,10 +16,7 @@ import '../widgets/visit_table.dart';
 import 'add_site_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
-  const SiteDetailScreen({
-    super.key,
-    required this.site,
-  });
+  const SiteDetailScreen({super.key, required this.site});
 
   final SiteModel site;
 
@@ -26,7 +25,8 @@ class SiteDetailScreen extends StatefulWidget {
 }
 
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
-  final FirestoreAdminRepository _repository = FirestoreAdminRepository.instance;
+  final FirestoreAdminRepository _repository =
+      FirestoreAdminRepository.instance;
   late final TextEditingController _searchController;
   String _searchQuery = '';
 
@@ -96,50 +96,23 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     Navigator.pop(context);
   }
 
-  Future<void> _openActionsSheet(SiteModel site) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return SafeArea(
-          top: false,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildActionSheetItem(
-                  icon: Icons.edit_outlined,
-                  label: 'Edit Site',
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _openEditSite(site);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildActionSheetItem(
-                  icon: Icons.delete_outline_rounded,
-                  label: 'Delete Site',
-                  textColor: AppColors.error,
-                  iconColor: AppColors.error,
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _deleteSite(site);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  Future<void> _openActionsSheet(SiteModel site) {
+    return ActionBottomSheet.show(
+      context,
+      items: [
+        ActionBottomSheetItem(
+          icon: Icons.edit_outlined,
+          label: 'Edit Site',
+          onTap: () => _openEditSite(site),
+        ),
+        ActionBottomSheetItem(
+          icon: Icons.delete_outline_rounded,
+          label: 'Delete Site',
+          textColor: AppColors.error,
+          iconColor: AppColors.error,
+          onTap: () => _deleteSite(site),
+        ),
+      ],
     );
   }
 
@@ -157,6 +130,20 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             'Site Details',
             style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: Center(
+                child: SurfaceIconButton(
+                  icon: Icons.more_vert_rounded,
+                  size: 40,
+                  iconSize: 20,
+                  borderRadius: 20,
+                  onTap: () => _openActionsSheet(widget.site),
+                ),
+              ),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(68),
             child: Padding(
@@ -227,80 +214,42 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         return StreamBuilder<List<VisitModel>>(
                           stream: _repository.watchSiteVisits(site.id),
                           builder: (context, visitsSnapshot) {
-                            final visits =
-                                _filterVisits(visitsSnapshot.data ?? const []);
+                            final visits = _filterVisits(
+                              visitsSnapshot.data ?? const [],
+                            );
 
-                            return Column(
+                            return TabBarView(
                               children: [
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      right: 20,
-                                      top: 12,
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: () => _openActionsSheet(site),
-                                        borderRadius:
-                                            BorderRadius.circular(999),
-                                        child: Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.neutral100,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: AppColors.neutral200,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.more_vert_rounded,
-                                            color: AppColors.neutral700,
-                                            size: 20,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                _buildInfoTab(
+                                  site: site,
+                                  clientName: clientName,
+                                  branchName: branchName,
+                                  manager: manager,
                                 ),
-                                Expanded(
-                                  child: TabBarView(
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    16,
+                                    20,
+                                    32,
+                                  ),
+                                  child: Column(
                                     children: [
-                                      _buildInfoTab(
-                                        site: site,
-                                        clientName: clientName,
-                                        branchName: branchName,
-                                        manager: manager,
+                                      AdminSearchBar(
+                                        height: 50,
+                                        hintText: 'Search visits...',
+                                        controller: _searchController,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _searchQuery = value;
+                                          });
+                                        },
                                       ),
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          20,
-                                          16,
-                                          20,
-                                          32,
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            AdminSearchBar(
-                                              height: 50,
-                                              hintText: 'Search visits...',
-                                              controller: _searchController,
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _searchQuery = value;
-                                                });
-                                              },
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Expanded(
-                                              child: visits.isEmpty
-                                                  ? _buildVisitsEmptyState()
-                                                  : VisitTable(visits: visits),
-                                            ),
-                                          ],
-                                        ),
+                                      const SizedBox(height: 16),
+                                      Expanded(
+                                        child: visits.isEmpty
+                                            ? _buildVisitsEmptyState()
+                                            : VisitTable(visits: visits),
                                       ),
                                     ],
                                   ),
@@ -327,14 +276,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       return visits;
     }
 
-    return visits.where((visit) {
-      return visit.managerName.toLowerCase().contains(query) ||
-          visit.date.toLowerCase().contains(query) ||
-          visit.day.toLowerCase().contains(query) ||
-          visit.time.toLowerCase().contains(query) ||
-          visit.status.toLowerCase().contains(query) ||
-          visit.notes.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return visits
+        .where((visit) {
+          return visit.managerName.toLowerCase().contains(query) ||
+              visit.date.toLowerCase().contains(query) ||
+              visit.day.toLowerCase().contains(query) ||
+              visit.time.toLowerCase().contains(query) ||
+              visit.status.toLowerCase().contains(query) ||
+              visit.notes.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   String _clientName(List<ClientModel> clients, String clientId) {
@@ -427,9 +378,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         const SizedBox(height: 20),
         Text(
           'Assigned Manager',
-          style: AppTextStyles.title.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         if (manager != null)
@@ -439,9 +388,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         const SizedBox(height: 20),
         Text(
           'Detailed Info',
-          style: AppTextStyles.title.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         Container(
@@ -461,6 +408,13 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               _buildInfoRow(
                 'Address',
                 site.address.trim().isEmpty ? site.location : site.address,
+              ),
+              _buildDivider(),
+              _buildInfoRow(
+                'Building / Floor',
+                site.buildingFloor.trim().isEmpty
+                    ? 'Not provided'
+                    : site.buildingFloor,
               ),
               _buildDivider(),
               _buildInfoRow(
@@ -490,9 +444,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       ),
       child: Text(
         text,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }
@@ -530,58 +482,14 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      thickness: 1,
-      color: AppColors.neutral200,
-    );
-  }
-
-  Widget _buildActionSheetItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color textColor = AppColors.neutral900,
-    Color iconColor = AppColors.neutral700,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          decoration: BoxDecoration(
-            color: AppColors.neutral50,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.neutral200),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: iconColor),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: textColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return const Divider(height: 1, thickness: 1, color: AppColors.neutral200);
   }
 
   Widget _buildVisitsEmptyState() {
     return Center(
       child: Text(
         'No visits available',
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }
@@ -590,9 +498,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Center(
       child: Text(
         message,
-        style: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.neutral500,
-        ),
+        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
       ),
     );
   }
