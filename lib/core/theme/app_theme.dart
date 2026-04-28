@@ -34,7 +34,7 @@ class AppTheme {
         onSurface: AppColors.neutral900,
         error: AppColors.error,
       ),
-      
+
       // AppBar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.backgroundLight,
@@ -64,7 +64,9 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
-          textStyle: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           elevation: 0,
         ),
       ),
@@ -77,7 +79,9 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
-          textStyle: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
@@ -105,7 +109,9 @@ class AppTheme {
           borderRadius: BorderRadius.circular(borderRadius),
           borderSide: const BorderSide(color: AppColors.error),
         ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral400),
+        hintStyle: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral400,
+        ),
       ),
 
       // Text Theme
@@ -136,7 +142,7 @@ class AppTheme {
         onSurface: Colors.white,
         error: AppColors.error,
       ),
-      
+
       // AppBar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.backgroundDark,
@@ -165,7 +171,9 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
-          textStyle: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           elevation: 0,
         ),
       ),
@@ -190,18 +198,28 @@ class AppTheme {
           borderRadius: BorderRadius.circular(borderRadius),
           borderSide: const BorderSide(color: AppColors.primary500, width: 2),
         ),
-        hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
+        hintStyle: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral500,
+        ),
       ),
 
       // Text Theme
       textTheme: TextTheme(
         headlineLarge: AppTextStyles.headingLarge.copyWith(color: Colors.white),
-        headlineMedium: AppTextStyles.headingMedium.copyWith(color: Colors.white),
+        headlineMedium: AppTextStyles.headingMedium.copyWith(
+          color: Colors.white,
+        ),
         headlineSmall: AppTextStyles.headingSmall.copyWith(color: Colors.white),
         titleLarge: AppTextStyles.title.copyWith(color: Colors.white),
-        bodyLarge: AppTextStyles.bodyLarge.copyWith(color: AppColors.neutral100),
-        bodyMedium: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral200),
-        bodySmall: AppTextStyles.bodySmall.copyWith(color: AppColors.neutral300),
+        bodyLarge: AppTextStyles.bodyLarge.copyWith(
+          color: AppColors.neutral100,
+        ),
+        bodyMedium: AppTextStyles.bodyMedium.copyWith(
+          color: AppColors.neutral200,
+        ),
+        bodySmall: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.neutral300,
+        ),
         labelSmall: AppTextStyles.caption.copyWith(color: AppColors.neutral400),
       ),
     );

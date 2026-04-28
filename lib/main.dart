@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
-import 'core/theme/app_theme.dart';
-import 'firebase_options.dart';
-import 'modules/notifications/services/notification_module.dart';
-import 'modules/notifications/services/push_notification_service.dart';
-import 'routes/app_routes.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
+import 'package:guardgrey/firebase_options.dart';
+import 'package:guardgrey/routes/app_routes.dart';
+import 'package:guardgrey/services/notification/notification_module.dart';
+import 'package:guardgrey/services/notification/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (!kIsWeb && _isMobilePlatform) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }

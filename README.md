@@ -1,17 +1,42 @@
-# guardgrey
+# GuardGrey
 
-A new Flutter project.
+GuardGrey is a Flutter application with Firebase-backed admin, client, site,
+attendance, and notifications workflows.
 
-## Getting Started
+## Project Structure
 
-This project is a starting point for a Flutter application.
+```text
+lib/
+  core/
+    theme/                 Shared color, typography, and theme setup
+  modules/
+    admin/
+      models/              Branch, site, client, manager, visit, attendance models
+      screens/             Admin/auth/profile/site/branch flows
+      services/            Firestore and location services
+      widgets/             Reusable admin UI widgets
+    notifications/
+      models/              Notification entities
+      services/            Push/local notification setup and persistence
+  routes/                  Route registration and navigation guards
+  screens/                 Main app sections wired into bottom navigation
+  widgets/                 Cross-feature shared widgets
+  main.dart                App bootstrap
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Supporting Directories
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```text
+assets/images/             App image assets
+docs/                      Project documentation
+functions/                 Firebase Cloud Functions
+android/ ios/ web/         Flutter platform targets
+linux/ macos/ windows/     Desktop platform targets
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Notes
+
+- Generated folders such as `build/`, `.dart_tool/`, and platform `ephemeral/`
+  directories are local artifacts and should stay out of version control.
+- The active app structure currently uses both `lib/modules/...` and
+  `lib/screens/...`; they are both part of the running app.

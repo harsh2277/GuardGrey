@@ -1,17 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../modules/admin/screens/branches_screen.dart';
-import '../modules/admin/screens/auth_gate_screen.dart';
-import '../modules/admin/screens/login_screen.dart';
-import '../modules/admin/screens/onboarding_screen.dart';
-import '../modules/admin/screens/profile_screen.dart';
-import '../modules/admin/screens/splash_screen.dart';
-import '../screens/main_navigation.dart';
-import '../screens/more/managers_list_screen.dart';
-import '../screens/more/notifications_screen.dart';
-import '../screens/more/reports_screen.dart';
-import '../screens/more/settings_screen.dart';
+import 'package:guardgrey/modules/auth/screens/auth_gate_screen.dart';
+import 'package:guardgrey/modules/auth/screens/login_screen.dart';
+import 'package:guardgrey/modules/auth/screens/onboarding_screen.dart';
+import 'package:guardgrey/modules/auth/screens/splash_screen.dart';
+import 'package:guardgrey/modules/branches/screens/branches_screen.dart';
+import 'package:guardgrey/modules/managers/screens/managers_list_screen.dart';
+import 'package:guardgrey/modules/navigation/screens/main_navigation_screen.dart';
+import 'package:guardgrey/modules/notifications/screens/notifications_screen.dart';
+import 'package:guardgrey/modules/reports/screens/reports_screen.dart';
+import 'package:guardgrey/modules/settings/screens/profile_screen.dart';
+import 'package:guardgrey/modules/settings/screens/settings_screen.dart';
 
 class AppRoutes {
   AppRoutes._();

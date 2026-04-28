@@ -32,6 +32,13 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/.turbo/
+/android/.gradle/
+/android/.kotlin/
+**/Flutter/ephemeral/
+**/flutter/ephemeral/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
 
 # Symbolication related
 app.*.symbols
