@@ -18,6 +18,7 @@ class LocationInputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAddress = address != null && address!.trim().isNotEmpty;
+    final displayText = hasAddress ? address!.trim() : 'Add location';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,73 +28,51 @@ class LocationInputField extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: onTap,
-            child: InputDecorator(
-              isFocused: false,
-              isEmpty: !hasAddress,
-              expands: false,
-              decoration: InputDecoration(
-                hintText: 'Select location',
-                prefixIcon: const Icon(
-                  Icons.location_on_outlined,
-                  color: AppColors.neutral500,
-                  size: 20,
-                ),
-                prefixIconConstraints: const BoxConstraints(
-                  minWidth: 44,
-                  minHeight: 44,
-                ),
-                suffixIcon: const Icon(
-                  Icons.map_outlined,
-                  color: AppColors.primary600,
-                  size: 20,
-                ),
-                suffixIconConstraints: const BoxConstraints(
-                  minWidth: 44,
-                  minHeight: 44,
-                ),
-                errorText: errorText,
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.neutral400,
-                ),
-                filled: true,
-                fillColor: AppColors.neutral50,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.neutral200),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.neutral200),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: AppColors.primary500,
-                    width: 1.5,
-                  ),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AppColors.error),
-                ),
+            child: Container(
+              height: 52,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppColors.neutral100,
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                hasAddress ? address!.trim() : 'Select location',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: hasAddress
-                      ? AppColors.neutral800
-                      : AppColors.neutral400,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: hasAddress
+                            ? AppColors.neutral800
+                            : AppColors.neutral500,
+                        fontWeight: hasAddress
+                            ? FontWeight.w500
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.neutral500,
+                    size: 18,
+                  ),
+                ],
               ),
             ),
           ),
         ),
+        if (errorText != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              errorText!,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+          ),
+        ],
       ],
     );
   }
