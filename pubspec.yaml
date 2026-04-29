@@ -38,9 +38,11 @@ dependencies:
   firebase_auth: ^5.6.0
   firebase_core: ^3.1.0
   firebase_messaging: ^15.2.9
+  firebase_storage: ^12.4.7
   flutter_local_notifications: ^17.2.2
   google_fonts: ^6.2.1
   flutter_map: ^7.0.2
+  image_picker: ^1.1.2
   latlong2: ^0.9.1
   geolocator: ^12.0.0
   http: ^1.2.2
@@ -56,6 +58,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.6
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -69,6 +73,18 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/images/logo.png
+  android: true
+  ios: true
+  web: false
 
   # To add assets to your application, add an assets section, like this:
   # assets:

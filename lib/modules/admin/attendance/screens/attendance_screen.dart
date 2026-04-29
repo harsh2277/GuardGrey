@@ -113,6 +113,10 @@ class _AttendanceScreenState extends State<AttendanceScreen>
               builder: (context, managersSnapshot) {
                 final managers =
                     managersSnapshot.data ?? const <ManagerModel>[];
+                final managerImageById = {
+                  for (final manager in managers)
+                    manager.id: manager.profileImage,
+                };
                 final allRecords = snapshot.data ?? const <AttendanceRecord>[];
                 final records = _filterRecords(allRecords);
                 final presentCount = allRecords
@@ -140,6 +144,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                           const SizedBox(height: 18),
                           AttendanceTable(
                             records: records,
+                            profileImageForRecord: (record) =>
+                                managerImageById[record.managerId] ?? '',
                             onManagerTap: (record) =>
                                 _openManagerFromAttendance(record, managers),
                           ),

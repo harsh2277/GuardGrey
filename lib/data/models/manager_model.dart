@@ -3,6 +3,7 @@ class ManagerModel {
   final String name;
   final String email;
   final String phone;
+  final String profileImage;
   final List<String> siteIds;
 
   const ManagerModel({
@@ -10,6 +11,7 @@ class ManagerModel {
     required this.name,
     required this.email,
     required this.phone,
+    this.profileImage = '',
     required this.siteIds,
   });
 
@@ -18,6 +20,7 @@ class ManagerModel {
     String? name,
     String? email,
     String? phone,
+    String? profileImage,
     List<String>? siteIds,
   }) {
     return ManagerModel(
@@ -25,6 +28,7 @@ class ManagerModel {
       name: name ?? this.name,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      profileImage: profileImage ?? this.profileImage,
       siteIds: siteIds ?? this.siteIds,
     );
   }

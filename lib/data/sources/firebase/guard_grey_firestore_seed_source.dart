@@ -40,6 +40,9 @@ class GuardGreyFirestoreSchema {
   static const String sites = 'sites';
   static const String attendance = 'attendance';
   static const String siteVisits = 'site_visits';
+  static const String reports = 'reports';
+  static const String fieldVisits = 'field_visits';
+  static const String managerLiveLocation = 'manager_live_location';
   static const String notifications = 'notifications';
   static const String adminNotificationTokens = 'admin_notification_tokens';
 
@@ -188,6 +191,12 @@ class GuardGreyFirestoreSchema {
           type: 'string',
           required: true,
           source: 'Mobile Number',
+        ),
+        FirestoreFieldDefinition(
+          name: 'profileImage',
+          type: 'string?',
+          required: false,
+          source: 'Manager profile avatar',
         ),
         FirestoreFieldDefinition(
           name: 'siteIds',
@@ -444,6 +453,226 @@ class GuardGreyFirestoreSchema {
           'Visit history is displayed under each site and already powers the visit notification function.',
     ),
     FirestoreCollectionDefinition(
+      name: reports,
+      sourceScreens: [
+        'ReportsScreen',
+        'ReportFormScreen',
+        'ReportDetailScreen',
+      ],
+      fields: [
+        FirestoreFieldDefinition(
+          name: 'id',
+          type: 'string',
+          required: true,
+          source: 'Document and payload identifier',
+        ),
+        FirestoreFieldDefinition(
+          name: 'reportName',
+          type: 'string',
+          required: true,
+          source: 'Report name',
+        ),
+        FirestoreFieldDefinition(
+          name: 'reportType',
+          type: 'string',
+          required: true,
+          source: 'Report type selector',
+        ),
+        FirestoreFieldDefinition(
+          name: 'managerId',
+          type: 'string',
+          required: true,
+          source: 'Assigned manager',
+          relationship: 'Many reports -> one manager',
+        ),
+        FirestoreFieldDefinition(
+          name: 'managerName',
+          type: 'string',
+          required: true,
+          source: 'Manager display data',
+        ),
+        FirestoreFieldDefinition(
+          name: 'dateTime',
+          type: 'Timestamp',
+          required: true,
+          source: 'Report date and time',
+        ),
+        FirestoreFieldDefinition(
+          name: 'location',
+          type: 'map(lat,lng,address)',
+          required: true,
+          source: 'Auto-fetched manager location',
+        ),
+        FirestoreFieldDefinition(
+          name: 'questions',
+          type: 'List<Map<String,String>>',
+          required: true,
+          source: 'Dynamic questions array',
+        ),
+        FirestoreFieldDefinition(
+          name: 'imageUrls',
+          type: 'List<String>',
+          required: false,
+          source: 'Firebase Storage URLs',
+        ),
+        FirestoreFieldDefinition(
+          name: 'createdAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+        FirestoreFieldDefinition(
+          name: 'updatedAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+      ],
+      notes:
+          'Structured reporting module used by admins for training, site visits, and night visits.',
+    ),
+    FirestoreCollectionDefinition(
+      name: fieldVisits,
+      sourceScreens: [
+        'FieldVisitListScreen',
+        'FieldVisitFormScreen',
+        'FieldVisitDetailScreen',
+      ],
+      fields: [
+        FirestoreFieldDefinition(
+          name: 'id',
+          type: 'string',
+          required: true,
+          source: 'Document and payload identifier',
+        ),
+        FirestoreFieldDefinition(
+          name: 'managerId',
+          type: 'string',
+          required: true,
+          source: 'Current signed-in manager',
+          relationship: 'Many field visits -> one manager',
+        ),
+        FirestoreFieldDefinition(
+          name: 'managerName',
+          type: 'string',
+          required: true,
+          source: 'Manager snapshot',
+        ),
+        FirestoreFieldDefinition(
+          name: 'phone',
+          type: 'string',
+          required: true,
+          source: 'Manager snapshot',
+        ),
+        FirestoreFieldDefinition(
+          name: 'profileImage',
+          type: 'string',
+          required: false,
+          source: 'Manager snapshot',
+        ),
+        FirestoreFieldDefinition(
+          name: 'siteName',
+          type: 'string',
+          required: true,
+          source: 'Manual site entry',
+        ),
+        FirestoreFieldDefinition(
+          name: 'description',
+          type: 'string',
+          required: true,
+          source: 'Visit description',
+        ),
+        FirestoreFieldDefinition(
+          name: 'location',
+          type: 'map(lat,lng,address)',
+          required: true,
+          source: 'Map picker result',
+        ),
+        FirestoreFieldDefinition(
+          name: 'imageUrls',
+          type: 'List<String>',
+          required: false,
+          source: 'Firebase Storage URLs',
+        ),
+        FirestoreFieldDefinition(
+          name: 'dateTime',
+          type: 'Timestamp',
+          required: true,
+          source: 'Visit date and time',
+        ),
+        FirestoreFieldDefinition(
+          name: 'createdAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+      ],
+      notes:
+          'Field visits remain separate from site visits and capture richer media and location data.',
+    ),
+    FirestoreCollectionDefinition(
+      name: managerLiveLocation,
+      sourceScreens: ['LiveTrackingScreen'],
+      fields: [
+        FirestoreFieldDefinition(
+          name: 'managerId',
+          type: 'string',
+          required: true,
+          source: 'Location owner',
+          relationship: 'One manager -> one live location document',
+        ),
+        FirestoreFieldDefinition(
+          name: 'managerName',
+          type: 'string',
+          required: true,
+          source: 'Manager display data',
+        ),
+        FirestoreFieldDefinition(
+          name: 'lat',
+          type: 'double',
+          required: true,
+          source: 'Map marker latitude',
+        ),
+        FirestoreFieldDefinition(
+          name: 'lng',
+          type: 'double',
+          required: true,
+          source: 'Map marker longitude',
+        ),
+        FirestoreFieldDefinition(
+          name: 'lastUpdated',
+          type: 'Timestamp',
+          required: true,
+          source: 'Last sync timestamp',
+        ),
+        FirestoreFieldDefinition(
+          name: 'checkInLocation',
+          type: 'map(lat,lng,address)',
+          required: true,
+          source: 'Reference check-in location',
+        ),
+        FirestoreFieldDefinition(
+          name: 'branchImage',
+          type: 'string',
+          required: false,
+          source: 'Branch illustration URL',
+        ),
+        FirestoreFieldDefinition(
+          name: 'helplineNumber',
+          type: 'string',
+          required: true,
+          source: 'Emergency contact',
+        ),
+        FirestoreFieldDefinition(
+          name: 'whatsappNumber',
+          type: 'string',
+          required: true,
+          source: 'WhatsApp contact',
+        ),
+      ],
+      notes: 'Admin live tracking map consumes this collection in real time.',
+    ),
+    FirestoreCollectionDefinition(
       name: notifications,
       sourceScreens: ['NotificationsScreen', 'NotificationRepository'],
       fields: [
@@ -564,6 +793,15 @@ class GuardGreyCollectionRefs {
   CollectionReference<Map<String, dynamic>> get siteVisits =>
       _firestore.collection(GuardGreyFirestoreSchema.siteVisits);
 
+  CollectionReference<Map<String, dynamic>> get reports =>
+      _firestore.collection(GuardGreyFirestoreSchema.reports);
+
+  CollectionReference<Map<String, dynamic>> get fieldVisits =>
+      _firestore.collection(GuardGreyFirestoreSchema.fieldVisits);
+
+  CollectionReference<Map<String, dynamic>> get managerLiveLocation =>
+      _firestore.collection(GuardGreyFirestoreSchema.managerLiveLocation);
+
   CollectionReference<Map<String, dynamic>> get notifications =>
       _firestore.collection(GuardGreyFirestoreSchema.notifications);
 
@@ -595,6 +833,17 @@ class GuardGreyFirestoreCrud {
   Future<void> upsertSiteVisit(String id, Map<String, dynamic> data) =>
       _refs.siteVisits.doc(id).set(data, SetOptions(merge: true));
 
+  Future<void> upsertReport(String id, Map<String, dynamic> data) =>
+      _refs.reports.doc(id).set(data, SetOptions(merge: true));
+
+  Future<void> upsertFieldVisit(String id, Map<String, dynamic> data) =>
+      _refs.fieldVisits.doc(id).set(data, SetOptions(merge: true));
+
+  Future<void> upsertManagerLiveLocation(
+    String id,
+    Map<String, dynamic> data,
+  ) => _refs.managerLiveLocation.doc(id).set(data, SetOptions(merge: true));
+
   Future<void> upsertNotification(String id, Map<String, dynamic> data) =>
       _refs.notifications.doc(id).set(data, SetOptions(merge: true));
 }
@@ -602,6 +851,9 @@ class GuardGreyFirestoreCrud {
 Future<void> seedDatabase({
   FirebaseFirestore? firestore,
   bool clearExisting = false,
+  bool includeReports = true,
+  bool includeVisits = true,
+  bool includeLiveTracking = true,
 }) async {
   final db = firestore ?? FirebaseFirestore.instance;
   final refs = GuardGreyCollectionRefs(firestore: db);
@@ -715,6 +967,7 @@ Future<void> seedDatabase({
       'name': 'Ravi Patel',
       'email': 'ravi.patel@guardgrey.com',
       'phone': '+91 98765 11001',
+      'profileImage': 'https://i.pravatar.cc/300?img=12',
       'siteIds': ['site_mall_security', 'site_industrial_plant'],
       'createdAt': _ts(2026, 1, 5, 9, 0),
       'updatedAt': now,
@@ -723,6 +976,7 @@ Future<void> seedDatabase({
       'name': 'Heena Shah',
       'email': 'heena.shah@guardgrey.com',
       'phone': '+91 98765 11002',
+      'profileImage': 'https://i.pravatar.cc/300?img=32',
       'siteIds': ['site_office_building'],
       'createdAt': _ts(2026, 1, 6, 9, 30),
       'updatedAt': now,
@@ -731,6 +985,7 @@ Future<void> seedDatabase({
       'name': 'Amit Joshi',
       'email': 'amit.joshi@guardgrey.com',
       'phone': '+91 98765 11003',
+      'profileImage': 'https://i.pravatar.cc/300?img=15',
       'siteIds': ['site_warehouse_gate', 'site_logistics_hub'],
       'createdAt': _ts(2026, 1, 7, 10, 0),
       'updatedAt': now,
@@ -739,6 +994,7 @@ Future<void> seedDatabase({
       'name': 'Sneha Trivedi',
       'email': 'sneha.trivedi@guardgrey.com',
       'phone': '+91 98765 11004',
+      'profileImage': 'https://i.pravatar.cc/300?img=47',
       'siteIds': ['site_corporate_park'],
       'createdAt': _ts(2026, 1, 8, 10, 20),
       'updatedAt': now,
@@ -747,6 +1003,7 @@ Future<void> seedDatabase({
       'name': 'Kunal Mehta',
       'email': 'kunal.mehta@guardgrey.com',
       'phone': '+91 98765 11005',
+      'profileImage': 'https://i.pravatar.cc/300?img=68',
       'siteIds': ['site_hospital_campus'],
       'createdAt': _ts(2026, 1, 9, 10, 40),
       'updatedAt': now,
@@ -1016,6 +1273,160 @@ Future<void> seedDatabase({
     },
   };
 
+  final reports = <String, Map<String, dynamic>>{
+    'report_training_2026_04_26': {
+      'id': 'report_training_2026_04_26',
+      'reportName': 'Quarterly Response Training',
+      'reportType': 'training',
+      'managerId': 'manager_ravi_patel',
+      'managerName': 'Ravi Patel',
+      'dateTime': _ts(2026, 4, 26, 10, 0),
+      'location': {
+        'lat': 23.0395,
+        'lng': 72.5315,
+        'address': 'Ashram Road, Navrangpura, Ahmedabad, Gujarat 380009',
+      },
+      'questions': [
+        {
+          'question': 'Were all guards present for the briefing?',
+          'description': 'Attendance was verified before drills started.',
+        },
+        {
+          'question': 'Was evacuation protocol demonstrated?',
+          'description': 'Two supervised drill runs were completed.',
+        },
+      ],
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'createdAt': _ts(2026, 4, 26, 10, 5),
+      'updatedAt': _ts(2026, 4, 26, 10, 35),
+    },
+    'report_night_visit_2026_04_24': {
+      'id': 'report_night_visit_2026_04_24',
+      'reportName': 'Night Shift Compliance Review',
+      'reportType': 'night_visit',
+      'managerId': 'manager_heena_shah',
+      'managerName': 'Heena Shah',
+      'dateTime': _ts(2026, 4, 24, 22, 15),
+      'location': {
+        'lat': 23.0115,
+        'lng': 72.5108,
+        'address': 'Pinnacle Business Park, Prahlad Nagar, Ahmedabad',
+      },
+      'questions': [
+        {
+          'question': 'Were entry logs updated on time?',
+          'description': 'Night reception desk logs matched shift timeline.',
+        },
+        {
+          'question': 'Were patrol checkpoints completed?',
+          'description':
+              'All checkpoints were acknowledged in the shift sheet.',
+        },
+      ],
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'createdAt': _ts(2026, 4, 24, 22, 20),
+      'updatedAt': _ts(2026, 4, 24, 22, 40),
+    },
+  };
+
+  final fieldVisits = <String, Map<String, dynamic>>{
+    'field_visit_2026_04_27_ravi': {
+      'id': 'field_visit_2026_04_27_ravi',
+      'managerId': 'manager_ravi_patel',
+      'managerName': 'Ravi Patel',
+      'phone': '+91 98765 11001',
+      'profileImage': 'https://i.pravatar.cc/300?img=12',
+      'siteName': 'Alpha One Mall Parking Bay',
+      'description':
+          'Reviewed parking access bottleneck and briefed night rotation staff.',
+      'location': {
+        'lat': 23.0273,
+        'lng': 72.5069,
+        'address': 'Alpha One Mall, Satellite, Ahmedabad',
+      },
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'dateTime': _ts(2026, 4, 27, 14, 20),
+      'createdAt': _ts(2026, 4, 27, 14, 20),
+    },
+    'field_visit_2026_04_25_sneha': {
+      'id': 'field_visit_2026_04_25_sneha',
+      'managerId': 'manager_sneha_trivedi',
+      'managerName': 'Sneha Trivedi',
+      'phone': '+91 98765 11004',
+      'profileImage': 'https://i.pravatar.cc/300?img=47',
+      'siteName': 'Corporate Avenue Visitor Gate',
+      'description':
+          'Inspected visitor queue control and verified badge scanner downtime notes.',
+      'location': {
+        'lat': 22.2868,
+        'lng': 70.7687,
+        'address': 'Corporate Avenue, Kalawad Road, Rajkot',
+      },
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'dateTime': _ts(2026, 4, 25, 16, 5),
+      'createdAt': _ts(2026, 4, 25, 16, 5),
+    },
+  };
+
+  final managerLiveLocations = <String, Map<String, dynamic>>{
+    'manager_ravi_patel': {
+      'managerId': 'manager_ravi_patel',
+      'managerName': 'Ravi Patel',
+      'lat': 23.0285,
+      'lng': 72.5082,
+      'lastUpdated': _ts(2026, 4, 28, 17, 35),
+      'checkInLocation': {
+        'lat': 23.0273,
+        'lng': 72.5069,
+        'address': 'Alpha One Mall, Satellite, Ahmedabad',
+      },
+      'branchImage':
+          'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+      'helplineNumber': '+91 1800 123 4455',
+      'whatsappNumber': '+91 98765 90001',
+    },
+    'manager_heena_shah': {
+      'managerId': 'manager_heena_shah',
+      'managerName': 'Heena Shah',
+      'lat': 23.0122,
+      'lng': 72.5121,
+      'lastUpdated': _ts(2026, 4, 28, 17, 20),
+      'checkInLocation': {
+        'lat': 23.0115,
+        'lng': 72.5108,
+        'address': 'Pinnacle Business Park, Prahlad Nagar, Ahmedabad',
+      },
+      'branchImage':
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=80',
+      'helplineNumber': '+91 1800 123 4455',
+      'whatsappNumber': '+91 98765 90002',
+    },
+    'manager_sneha_trivedi': {
+      'managerId': 'manager_sneha_trivedi',
+      'managerName': 'Sneha Trivedi',
+      'lat': 22.2853,
+      'lng': 70.7705,
+      'lastUpdated': _ts(2026, 4, 28, 16, 55),
+      'checkInLocation': {
+        'lat': 22.2868,
+        'lng': 70.7687,
+        'address': 'Corporate Avenue, Kalawad Road, Rajkot',
+      },
+      'branchImage':
+          'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80',
+      'helplineNumber': '+91 1800 123 4455',
+      'whatsappNumber': '+91 98765 90004',
+    },
+  };
+
   final batch = db.batch();
 
   debugPrint('Creating branches...');
@@ -1048,6 +1459,27 @@ Future<void> seedDatabase({
     batch.set(refs.siteVisits.doc(entry.key), entry.value);
   }
 
+  if (includeReports) {
+    debugPrint('Creating reports...');
+    for (final entry in reports.entries) {
+      batch.set(refs.reports.doc(entry.key), entry.value);
+    }
+  }
+
+  if (includeVisits) {
+    debugPrint('Creating field visits...');
+    for (final entry in fieldVisits.entries) {
+      batch.set(refs.fieldVisits.doc(entry.key), entry.value);
+    }
+  }
+
+  if (includeLiveTracking) {
+    debugPrint('Creating manager live locations...');
+    for (final entry in managerLiveLocations.entries) {
+      batch.set(refs.managerLiveLocation.doc(entry.key), entry.value);
+    }
+  }
+
   debugPrint('Creating notifications...');
   for (final entry in notifications.entries) {
     batch.set(refs.notifications.doc(entry.key), entry.value);
@@ -1065,6 +1497,9 @@ Future<void> seedDatabase({
 Future<void> _clearSeedCollections(GuardGreyCollectionRefs refs) async {
   await Future.wait([
     _deleteAllDocs(refs.notifications),
+    _deleteAllDocs(refs.managerLiveLocation),
+    _deleteAllDocs(refs.fieldVisits),
+    _deleteAllDocs(refs.reports),
     _deleteAllDocs(refs.siteVisits),
     _deleteAllDocs(refs.attendance),
     _deleteAllDocs(refs.sites),

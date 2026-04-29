@@ -8,7 +8,7 @@ import 'package:guardgrey/core/widgets/admin_search_bar.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
-import 'package:guardgrey/modules/manager/visits/screens/manager_visits_screen.dart';
+import 'package:guardgrey/modules/manager/field_visits/screens/field_visit_list_screen.dart';
 
 class ManagerSitesScreen extends StatefulWidget {
   const ManagerSitesScreen({super.key});
@@ -101,7 +101,7 @@ class _ManagerSitesScreenState extends State<ManagerSitesScreen>
                             )
                           : ListView.separated(
                               itemCount: sites.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (context, index) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final site = sites[index];
@@ -110,8 +110,7 @@ class _ManagerSitesScreenState extends State<ManagerSitesScreen>
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => ManagerVisitsScreen(
-                                        initialSiteId: site.id,
+                                      builder: (_) => FieldVisitListScreen(
                                         initialSiteName: site.name,
                                       ),
                                     ),

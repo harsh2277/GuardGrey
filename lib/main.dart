@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
       title: 'GuardGrey',
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
-      initialRoute: AppRoutes.splash,
+      initialRoute: AppRoutes.authGate,
       onGenerateRoute: AppRoutes.onGenerateRoute,
     );
   }

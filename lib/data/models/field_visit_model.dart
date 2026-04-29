@@ -1,0 +1,46 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:guardgrey/data/models/app_location.dart';
+
+class FieldVisitModel {
+  const FieldVisitModel({
+    required this.id,
+    required this.managerId,
+    required this.managerName,
+    required this.phone,
+    required this.profileImage,
+    required this.siteName,
+    required this.description,
+    required this.location,
+    required this.imageUrls,
+    required this.dateTime,
+    this.createdAt,
+  });
+
+  final String id;
+  final String managerId;
+  final String managerName;
+  final String phone;
+  final String profileImage;
+  final String siteName;
+  final String description;
+  final AppLocation location;
+  final List<String> imageUrls;
+  final DateTime dateTime;
+  final DateTime? createdAt;
+
+  Map<String, dynamic> toFirestore() {
+    return <String, dynamic>{
+      'id': id,
+      'managerId': managerId,
+      'managerName': managerName,
+      'phone': phone,
+      'profileImage': profileImage,
+      'siteName': siteName,
+      'description': description,
+      'location': location.toMap(),
+      'imageUrls': imageUrls,
+      'dateTime': Timestamp.fromDate(dateTime),
+    };
+  }
+}

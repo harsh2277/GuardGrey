@@ -148,7 +148,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
 
     try {
-      await seedDatabase(clearExisting: true);
+      await seedDatabase(
+        clearExisting: true,
+        includeReports: true,
+        includeVisits: true,
+        includeLiveTracking: true,
+      );
       if (!mounted) {
         return;
       }

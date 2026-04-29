@@ -1038,7 +1038,7 @@ class _CurrentLocationButton extends StatelessWidget {
                       ),
                 const SizedBox(width: AppSpacing.s),
                 Text(
-                  'Current location',
+                  'Current Location',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.neutral900,
                     fontWeight: FontWeight.w600,

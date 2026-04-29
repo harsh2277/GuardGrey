@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/features/auth/models/app_role.dart';
 import 'package:guardgrey/routes/route_guard.dart';
 import 'login_screen.dart';
 
@@ -15,7 +16,7 @@ class AuthGateScreen extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          print('Auth state error: ${snapshot.error}');
+          debugPrint('Auth state error: ${snapshot.error}');
           return Scaffold(
             backgroundColor: AppColors.backgroundLight,
             body: Center(
@@ -43,7 +44,7 @@ class AuthGateScreen extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
-          return FutureBuilder(
+          return FutureBuilder<AppRole>(
             future: RouteGuard.resolveRole(snapshot.data!),
             builder: (context, roleSnapshot) {
               if (roleSnapshot.connectionState == ConnectionState.waiting) {
@@ -57,7 +58,37 @@ class AuthGateScreen extends StatelessWidget {
                 );
               }
 
-              return RouteGuard.homeForRole(roleSnapshot.data!);
+              if (roleSnapshot.hasError) {
+                return Scaffold(
+                  backgroundColor: AppColors.backgroundLight,
+                  body: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'Unable to resolve the account role. Please sign in again.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.neutral500,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final role = roleSnapshot.data;
+              if (role == null) {
+                return const Scaffold(
+                  backgroundColor: AppColors.backgroundLight,
+                  body: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary600,
+                    ),
+                  ),
+                );
+              }
+
+              return RouteGuard.homeForRole(role);
             },
           );
         }

@@ -115,13 +115,12 @@ class ManagerDashboardScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       _InfoCard(
-                        title: 'Site Visits',
-                        subtitle:
-                            'Review recent site activity and visit history',
+                        title: 'Field Visits',
+                        subtitle: 'Log and review field visit activity',
                         icon: Icons.pin_drop_outlined,
                         onTap: () => Navigator.pushNamed(
                           context,
-                          AppRoutes.managerVisits,
+                          AppRoutes.managerFieldVisits,
                         ),
                       ),
                     ],

@@ -33,6 +33,16 @@ class MoreScreen extends StatelessWidget {
             title: 'Reports',
             routeName: AppRoutes.adminReports,
           ),
+          _MoreItem(
+            icon: Icons.location_on_outlined,
+            title: 'Field Visit',
+            routeName: AppRoutes.adminFieldVisits,
+          ),
+          _MoreItem(
+            icon: Icons.location_searching_rounded,
+            title: 'Live Tracking',
+            routeName: AppRoutes.adminLiveTracking,
+          ),
         ],
       ),
       _MoreSection(
@@ -71,7 +81,7 @@ class MoreScreen extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         itemCount: sections.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 20),
+        separatorBuilder: (context, index) => const SizedBox(height: 20),
         itemBuilder: (context, index) {
           final section = sections[index];
 

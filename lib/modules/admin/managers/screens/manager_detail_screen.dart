@@ -517,7 +517,11 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
           Expanded(
             child: records.isEmpty
                 ? _buildUnavailableState('No attendance records available.')
-                : AttendanceTable(records: records),
+                : AttendanceTable(
+                    records: records,
+                    profileImageForRecord: (record) =>
+                        widget.manager.profileImage,
+                  ),
           ),
         ],
       ),

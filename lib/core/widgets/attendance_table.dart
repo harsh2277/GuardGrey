@@ -5,14 +5,20 @@ import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/data/models/attendance_record.dart';
 
 class AttendanceTable extends StatelessWidget {
-  const AttendanceTable({super.key, required this.records, this.onManagerTap});
+  const AttendanceTable({
+    super.key,
+    required this.records,
+    this.onManagerTap,
+    this.profileImageForRecord,
+  });
 
   final List<AttendanceRecord> records;
   final ValueChanged<AttendanceRecord>? onManagerTap;
+  final String? Function(AttendanceRecord record)? profileImageForRecord;
 
   @override
   Widget build(BuildContext context) {
-    final minWidth = MediaQuery.of(context).size.width + 280;
+    final minWidth = MediaQuery.of(context).size.width + 420;
 
     return Container(
       width: double.infinity,
@@ -29,11 +35,12 @@ class AttendanceTable extends StatelessWidget {
             constraints: BoxConstraints(minWidth: minWidth),
             child: Table(
               columnWidths: const {
-                0: FlexColumnWidth(2.7),
-                1: FlexColumnWidth(1.45),
-                2: FlexColumnWidth(1.8),
-                3: FlexColumnWidth(1.65),
-                4: FlexColumnWidth(1.7),
+                0: FixedColumnWidth(84),
+                1: FlexColumnWidth(2.5),
+                2: FlexColumnWidth(1.45),
+                3: FlexColumnWidth(1.8),
+                4: FlexColumnWidth(1.65),
+                5: FlexColumnWidth(1.7),
               },
               defaultVerticalAlignment: TableCellVerticalAlignment.middle,
               children: [
@@ -51,7 +58,7 @@ class AttendanceTable extends StatelessWidget {
   }
 
   TableRow _buildHeaderRow() {
-    const labels = ['Name', 'Status', 'Date', 'Check-In', 'Check-Out'];
+    const labels = ['Photo', 'Name', 'Status', 'Date', 'Time In', 'Time Out'];
 
     return TableRow(
       decoration: const BoxDecoration(color: AppColors.primary50),
@@ -72,6 +79,7 @@ class AttendanceTable extends StatelessWidget {
         ),
       ),
       children: [
+        _buildPhotoCell(record),
         _buildManagerCell(record),
         _buildStatusCell(record.status),
         _buildCell(record.date),
@@ -103,9 +111,36 @@ class AttendanceTable extends StatelessWidget {
     );
   }
 
+  Widget _buildPhotoCell(AttendanceRecord record) {
+    final imageUrl = profileImageForRecord?.call(record) ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: CircleAvatar(
+          radius: 20,
+          backgroundColor: AppColors.primary50,
+          backgroundImage: imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+          child: imageUrl.isEmpty
+              ? Text(
+                  record.name.isEmpty ? 'M' : record.name[0].toUpperCase(),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.primary700,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
   Widget _buildManagerCell(AttendanceRecord record) {
     final content = Text(
       record.name,
+      softWrap: false,
+      overflow: TextOverflow.visible,
       style: AppTextStyles.bodyMedium.copyWith(
         color: onManagerTap == null
             ? AppColors.neutral800

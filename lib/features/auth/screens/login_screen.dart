@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/data/sources/firebase/guard_grey_firestore_seed_source.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  bool _isSeedingDatabase = false;
   String? _errorMessage;
 
   @override
@@ -44,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
     } on FirebaseAuthException catch (error) {
-      print('Login error: ${error.code} ${error.message}');
+      debugPrint('Login error: ${error.code} ${error.message}');
       if (!mounted) {
         return;
       }
@@ -52,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = _messageForAuthError(error);
       });
     } catch (error) {
-      print('Login error: $error');
+      debugPrint('Login error: $error');
       if (!mounted) {
         return;
       }
@@ -60,12 +62,59 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = 'Unable to login right now. Please try again.';
       });
     } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _seedDatabase() async {
+    if (_isSeedingDatabase || _isSubmitting) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isSeedingDatabase = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await seedDatabase(
+        clearExisting: true,
+        includeReports: true,
+        includeVisits: true,
+        includeLiveTracking: true,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text(
+            'Database seeded successfully.',
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
+          ),
+        ),
+      );
+    } catch (error) {
+      debugPrint('Seed database error: $error');
       if (!mounted) {
         return;
       }
       setState(() {
-        _isSubmitting = false;
+        _errorMessage =
+            'Unable to seed the database right now. Please try again.';
       });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSeedingDatabase = false;
+        });
+      }
     }
   }
 
@@ -193,7 +242,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitLogin,
+                    onPressed: _isSubmitting || _isSeedingDatabase
+                        ? null
+                        : _submitLogin,
                     child: _isSubmitting
                         ? const SizedBox(
                             width: 20,
@@ -204,6 +255,34 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           )
                         : const Text('Login'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSubmitting || _isSeedingDatabase
+                        ? null
+                        : _seedDatabase,
+                    icon: _isSeedingDatabase
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                          )
+                        : const Icon(Icons.cloud_upload_outlined),
+                    label: Text(
+                      _isSeedingDatabase
+                          ? 'Seeding Database...'
+                          : 'Seed Database',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Use Seed Database to create sample reports, field visits, managers, sites, and live tracking data before login.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.neutral500,
                   ),
                 ),
               ],
