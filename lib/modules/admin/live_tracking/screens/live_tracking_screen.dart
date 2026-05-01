@@ -41,17 +41,13 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Live Tracking',
-      searchHint: 'Refine by manager or location...',
-      initialSearchQuery: _searchQuery,
       statusOptions: const ['Active', 'Stale'],
       initialStatus: _selectedStatus,
     );
     if (filters == null) {
       return;
     }
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedStatus = filters.status;
     });
   }

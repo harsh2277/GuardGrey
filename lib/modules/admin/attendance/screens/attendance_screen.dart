@@ -44,8 +44,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Attendance',
-      searchHint: 'Refine by name, check-in, check-out...',
-      initialSearchQuery: _searchQuery,
       statusOptions: const ['Present', 'Absent', 'Late'],
       initialStatus: _selectedStatus,
       initialDate: _selectedDate,
@@ -56,9 +54,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedStatus = filters.status;
       _selectedDate = filters.date;
     });

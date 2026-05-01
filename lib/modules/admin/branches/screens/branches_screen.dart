@@ -115,8 +115,6 @@ class _BranchesScreenState extends State<BranchesScreen>
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Branches',
-      searchHint: 'Refine by branch, city, address...',
-      initialSearchQuery: _searchQuery,
       extraDropdowns: [
         ListFilterDropdownField(
           key: 'clientName',
@@ -131,9 +129,7 @@ class _BranchesScreenState extends State<BranchesScreen>
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedClientName = filters.extraSelections['clientName'];
     });
   }

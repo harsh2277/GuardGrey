@@ -42,6 +42,7 @@ class GuardGreyFirestoreSchema {
   static const String siteVisits = 'site_visits';
   static const String reports = 'reports';
   static const String fieldVisits = 'field_visits';
+  static const String managerLeaves = 'manager_leaves';
   static const String managerLiveLocation = 'manager_live_location';
   static const String notifications = 'notifications';
   static const String adminNotificationTokens = 'admin_notification_tokens';
@@ -611,6 +612,69 @@ class GuardGreyFirestoreSchema {
           'Field visits remain separate from site visits and capture richer media and location data.',
     ),
     FirestoreCollectionDefinition(
+      name: managerLeaves,
+      sourceScreens: ['ManagerLeaveScreen', 'ManagerLeaveFormScreen'],
+      fields: [
+        FirestoreFieldDefinition(
+          name: 'managerId',
+          type: 'string',
+          required: true,
+          source: 'Current signed-in manager',
+          relationship: 'Many leave requests -> one manager',
+        ),
+        FirestoreFieldDefinition(
+          name: 'managerName',
+          type: 'string',
+          required: true,
+          source: 'Manager identity on leave list',
+        ),
+        FirestoreFieldDefinition(
+          name: 'leaveType',
+          type: 'string',
+          required: true,
+          source: 'Leave type selector',
+        ),
+        FirestoreFieldDefinition(
+          name: 'fromDate',
+          type: 'Timestamp',
+          required: true,
+          source: 'Leave start date',
+        ),
+        FirestoreFieldDefinition(
+          name: 'toDate',
+          type: 'Timestamp',
+          required: true,
+          source: 'Leave end date',
+        ),
+        FirestoreFieldDefinition(
+          name: 'reason',
+          type: 'string',
+          required: true,
+          source: 'Leave request reason',
+        ),
+        FirestoreFieldDefinition(
+          name: 'status',
+          type: 'string',
+          required: true,
+          source: 'Pending / Approved / Rejected chip',
+        ),
+        FirestoreFieldDefinition(
+          name: 'createdAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+        FirestoreFieldDefinition(
+          name: 'updatedAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+      ],
+      notes:
+          'Supports the manager leave module with editable pending requests and historical status display.',
+    ),
+    FirestoreCollectionDefinition(
       name: managerLiveLocation,
       sourceScreens: ['LiveTrackingScreen'],
       fields: [
@@ -799,6 +863,9 @@ class GuardGreyCollectionRefs {
   CollectionReference<Map<String, dynamic>> get fieldVisits =>
       _firestore.collection(GuardGreyFirestoreSchema.fieldVisits);
 
+  CollectionReference<Map<String, dynamic>> get managerLeaves =>
+      _firestore.collection(GuardGreyFirestoreSchema.managerLeaves);
+
   CollectionReference<Map<String, dynamic>> get managerLiveLocation =>
       _firestore.collection(GuardGreyFirestoreSchema.managerLiveLocation);
 
@@ -838,6 +905,9 @@ class GuardGreyFirestoreCrud {
 
   Future<void> upsertFieldVisit(String id, Map<String, dynamic> data) =>
       _refs.fieldVisits.doc(id).set(data, SetOptions(merge: true));
+
+  Future<void> upsertManagerLeave(String id, Map<String, dynamic> data) =>
+      _refs.managerLeaves.doc(id).set(data, SetOptions(merge: true));
 
   Future<void> upsertManagerLiveLocation(
     String id,
@@ -1008,6 +1078,19 @@ Future<void> seedDatabase({
       'createdAt': _ts(2026, 1, 9, 10, 40),
       'updatedAt': now,
     },
+    'manager_guardpulse_demo': {
+      'name': 'Manager Demo',
+      'email': 'manager123@gmail.com',
+      'phone': '+91 98765 22001',
+      'profileImage': 'https://i.pravatar.cc/300?img=23',
+      'siteIds': [
+        'site_mall_security',
+        'site_logistics_hub',
+        'site_corporate_park',
+      ],
+      'createdAt': _ts(2026, 1, 10, 11, 15),
+      'updatedAt': now,
+    },
   };
 
   final sites = <String, Map<String, dynamic>>{
@@ -1175,6 +1258,17 @@ Future<void> seedDatabase({
       'checkOutAt': null,
       'updatedAt': _ts(2026, 4, 27, 8, 30),
     },
+    'attendance_guardpulse_demo_2026_04_28': {
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'siteId': 'site_mall_security',
+      'siteName': 'Mall Security',
+      'status': 'Present',
+      'date': _ts(2026, 4, 28),
+      'checkInAt': _ts(2026, 4, 28, 8, 58),
+      'checkOutAt': _ts(2026, 4, 28, 18, 4),
+      'updatedAt': _ts(2026, 4, 28, 18, 4),
+    },
   };
 
   final siteVisits = <String, Map<String, dynamic>>{
@@ -1188,6 +1282,14 @@ Future<void> seedDatabase({
       'timeLabel': '09:15 AM',
       'status': 'Completed',
       'notes': 'Routine morning inspection completed.',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': [
+        'Uniform checked',
+        'Logbook reviewed',
+        'Supervisor briefing done',
+      ],
       'createdAt': _ts(2026, 4, 26, 9, 15),
     },
     'visit_mall_2026_04_25': {
@@ -1200,6 +1302,10 @@ Future<void> seedDatabase({
       'timeLabel': '06:40 PM',
       'status': 'Completed',
       'notes': 'Shift handoff reviewed with supervisor.',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': ['Logbook reviewed', 'Supervisor briefing done'],
       'createdAt': _ts(2026, 4, 25, 18, 40),
     },
     'visit_office_2026_04_26': {
@@ -1212,6 +1318,10 @@ Future<void> seedDatabase({
       'timeLabel': '11:00 AM',
       'status': 'In Progress',
       'notes': 'Visitor desk escalation reviewed.',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': ['Uniform checked'],
       'createdAt': _ts(2026, 4, 26, 11, 0),
     },
     'visit_corporate_2026_04_24': {
@@ -1224,6 +1334,10 @@ Future<void> seedDatabase({
       'timeLabel': '04:20 PM',
       'status': 'Completed',
       'notes': 'Parking access issue resolved.',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': ['Uniform checked', 'Logbook reviewed'],
       'createdAt': _ts(2026, 4, 24, 16, 20),
     },
     'visit_hospital_2026_04_23': {
@@ -1236,7 +1350,49 @@ Future<void> seedDatabase({
       'timeLabel': '08:10 AM',
       'status': 'Scheduled',
       'notes': '',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': ['Supervisor briefing done'],
       'createdAt': _ts(2026, 4, 23, 8, 10),
+    },
+    'visit_guardpulse_demo_2026_04_28_1': {
+      'siteId': 'site_mall_security',
+      'siteName': 'Mall Security',
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'date': _ts(2026, 4, 28, 10, 30),
+      'day': 'Monday',
+      'timeLabel': '10:30 AM',
+      'status': 'Completed',
+      'notes':
+          'Completed supervisor floor round, reviewed parking gate roster, and captured proof images.',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': [
+        'Uniform checked',
+        'Logbook reviewed',
+        'Supervisor briefing done',
+      ],
+      'createdAt': _ts(2026, 4, 28, 10, 30),
+    },
+    'visit_guardpulse_demo_2026_04_29_1': {
+      'siteId': 'site_logistics_hub',
+      'siteName': 'Logistics Hub',
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'date': _ts(2026, 4, 29, 15, 0),
+      'day': 'Tuesday',
+      'timeLabel': '03:00 PM',
+      'status': 'Pending',
+      'notes':
+          'Scheduled dispatch-bay inspection and evening shift handover verification.',
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'checklist': ['Uniform checked', 'Logbook reviewed'],
+      'createdAt': _ts(2026, 4, 28, 18, 15),
     },
   };
 
@@ -1374,6 +1530,26 @@ Future<void> seedDatabase({
       'dateTime': _ts(2026, 4, 25, 16, 5),
       'createdAt': _ts(2026, 4, 25, 16, 5),
     },
+    'field_visit_2026_04_28_guardpulse_demo': {
+      'id': 'field_visit_2026_04_28_guardpulse_demo',
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'phone': '+91 98765 22001',
+      'profileImage': 'https://i.pravatar.cc/300?img=23',
+      'siteName': 'Logistics Hub Perimeter',
+      'description':
+          'Surprise perimeter review after truck queue escalation. Confirmed lighting coverage and updated the dispatch gate note register.',
+      'location': {
+        'lat': 21.0877,
+        'lng': 72.8811,
+        'address': 'Freight Terminal, Sachin, Surat',
+      },
+      'imageUrls': [
+        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80',
+      ],
+      'dateTime': _ts(2026, 4, 28, 13, 40),
+      'createdAt': _ts(2026, 4, 28, 13, 40),
+    },
   };
 
   final managerLiveLocations = <String, Map<String, dynamic>>{
@@ -1424,6 +1600,49 @@ Future<void> seedDatabase({
           'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80',
       'helplineNumber': '+91 1800 123 4455',
       'whatsappNumber': '+91 98765 90004',
+    },
+    'manager_guardpulse_demo': {
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'lat': 23.0281,
+      'lng': 72.5076,
+      'lastUpdated': _ts(2026, 4, 28, 17, 42),
+      'checkInLocation': {
+        'lat': 23.0273,
+        'lng': 72.5069,
+        'address': 'Alpha One Mall, Satellite, Ahmedabad',
+      },
+      'branchImage':
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=80',
+      'helplineNumber': '+91 1800 123 4455',
+      'whatsappNumber': '+91 98765 22001',
+    },
+  };
+
+  final managerLeaves = <String, Map<String, dynamic>>{
+    'leave_guardpulse_demo_pending': {
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'leaveType': 'Casual Leave',
+      'fromDate': _ts(2026, 5, 3),
+      'toDate': _ts(2026, 5, 4),
+      'reason':
+          'Requested personal leave for two days after scheduled site handover.',
+      'status': 'Pending',
+      'createdAt': _ts(2026, 4, 28, 18, 30),
+      'updatedAt': _ts(2026, 4, 28, 18, 30),
+    },
+    'leave_guardpulse_demo_approved': {
+      'managerId': 'manager_guardpulse_demo',
+      'managerName': 'Manager Demo',
+      'leaveType': 'Sick Leave',
+      'fromDate': _ts(2026, 4, 10),
+      'toDate': _ts(2026, 4, 11),
+      'reason':
+          'Recovered after medical rest and shared shift coverage before absence.',
+      'status': 'Approved',
+      'createdAt': _ts(2026, 4, 8, 9, 10),
+      'updatedAt': _ts(2026, 4, 8, 17, 45),
     },
   };
 
@@ -1480,6 +1699,11 @@ Future<void> seedDatabase({
     }
   }
 
+  debugPrint('Creating manager leave requests...');
+  for (final entry in managerLeaves.entries) {
+    batch.set(refs.managerLeaves.doc(entry.key), entry.value);
+  }
+
   debugPrint('Creating notifications...');
   for (final entry in notifications.entries) {
     batch.set(refs.notifications.doc(entry.key), entry.value);
@@ -1497,6 +1721,7 @@ Future<void> seedDatabase({
 Future<void> _clearSeedCollections(GuardGreyCollectionRefs refs) async {
   await Future.wait([
     _deleteAllDocs(refs.notifications),
+    _deleteAllDocs(refs.managerLeaves),
     _deleteAllDocs(refs.managerLiveLocation),
     _deleteAllDocs(refs.fieldVisits),
     _deleteAllDocs(refs.reports),

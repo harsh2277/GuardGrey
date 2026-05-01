@@ -51,8 +51,6 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Attendance',
-      searchHint: 'Refine by status, date, check-in...',
-      initialSearchQuery: _attendanceSearchQuery,
       statusOptions: const ['Present', 'Absent', 'Late'],
       initialStatus: _attendanceStatus,
       initialDate: _attendanceDate,
@@ -63,9 +61,7 @@ class _ManagerDetailScreenState extends State<ManagerDetailScreen> {
       return;
     }
 
-    _attendanceSearchController.text = filters.searchQuery;
     setState(() {
-      _attendanceSearchQuery = filters.searchQuery;
       _attendanceStatus = filters.status;
       _attendanceDate = filters.date;
     });

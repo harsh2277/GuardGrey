@@ -64,8 +64,6 @@ class _ClientsScreenState extends State<ClientsScreen>
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Clients',
-      searchHint: 'Refine by client, branch, phone...',
-      initialSearchQuery: _searchQuery,
       extraDropdowns: [
         ListFilterDropdownField(
           key: 'siteName',
@@ -80,9 +78,7 @@ class _ClientsScreenState extends State<ClientsScreen>
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedSiteName = filters.extraSelections['siteName'];
     });
   }

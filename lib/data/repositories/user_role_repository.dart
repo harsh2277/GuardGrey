@@ -7,6 +7,7 @@ class UserRoleRepository {
   UserRoleRepository._();
 
   static final UserRoleRepository instance = UserRoleRepository._();
+  static const Set<String> _managerEmailOverrides = {'manager123@gmail.com'};
 
   final GuardGreyRepository _repository = GuardGreyRepository.instance;
 
@@ -20,6 +21,10 @@ class UserRoleRepository {
     final email = user.email?.trim().toLowerCase() ?? '';
     if (email.isEmpty) {
       return AppRole.admin;
+    }
+
+    if (_managerEmailOverrides.contains(email)) {
+      return AppRole.manager;
     }
 
     final manager = await _repository.fetchManagerByEmail(email);

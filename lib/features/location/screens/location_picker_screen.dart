@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart' show LocationPermission, Position;
 import 'package:latlong2/latlong.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/theme/app_theme.dart';
+import 'package:guardgrey/features/location/services/current_location_service.dart';
 import 'package:guardgrey/features/location/services/nominatim_location_service.dart';
+import 'package:guardgrey/features/location/widgets/current_location_button_widget.dart';
 import '../models/location_picker_result.dart';
 import '../models/location_search_result.dart';
 
@@ -40,15 +42,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   static const double _controlHeight = 52;
   static const double _searchDropdownSpacing = 8;
   static const double _bottomSheetMinHeight = 276;
-  static const double _floatingButtonGap = 16;
 
   final TextEditingController _searchController = TextEditingController();
-  late final TextEditingController _locationTitleController;
   late final TextEditingController _addressController;
   late final TextEditingController _buildingFloorController;
-  final FocusNode _locationTitleFocusNode = FocusNode();
   final FocusNode _buildingFloorFocusNode = FocusNode();
   final MapController _mapController = MapController();
+  final CurrentLocationService _currentLocationService =
+      const CurrentLocationService();
   final NominatimLocationService _locationService = NominatimLocationService();
 
   Timer? _searchDebounce;
@@ -67,6 +68,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   bool _isResolvingAddress = false;
   bool _showSearchResults = false;
   bool _followCurrentLocation = false;
+  String? _currentLocationError;
   String? _searchError;
   String? _buildingFloorError;
 
@@ -97,14 +99,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         widget.initialLatitude != null && widget.initialLongitude != null
         ? LatLng(widget.initialLatitude!, widget.initialLongitude!)
         : null;
-    _locationTitleController = TextEditingController(
-      text: _selectedLocationTitle,
-    );
     _addressController = TextEditingController(text: _selectedAddress);
     _buildingFloorController = TextEditingController(
       text: widget.initialBuildingFloor?.trim() ?? '',
     );
-    _locationTitleFocusNode.addListener(_handleBottomFieldFocusChanged);
     _buildingFloorFocusNode.addListener(_handleBottomFieldFocusChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -121,12 +119,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _reverseDebounce?.cancel();
     _positionSubscription?.cancel();
     _searchController.dispose();
-    _locationTitleController.dispose();
     _addressController.dispose();
     _buildingFloorController.dispose();
-    _locationTitleFocusNode
-      ..removeListener(_handleBottomFieldFocusChanged)
-      ..dispose();
     _buildingFloorFocusNode
       ..removeListener(_handleBottomFieldFocusChanged)
       ..dispose();
@@ -141,7 +135,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Future<void> _initializeLocationLayer() async {
-    final permission = await Geolocator.checkPermission();
+    final permission = await _currentLocationService.checkPermission();
     if (!mounted) {
       return;
     }
@@ -157,50 +151,52 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }) async {
     await _positionSubscription?.cancel();
 
-    final locationSettings = const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 8,
-    );
-
-    _positionSubscription =
-        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-          (position) {
-            final latLng = LatLng(position.latitude, position.longitude);
-            if (!mounted) {
-              return;
-            }
-
-            setState(() {
-              _currentLatLng = latLng;
-            });
-
-            if (_followCurrentLocation) {
-              _mapController.move(latLng, _defaultZoom);
-            }
-          },
-        );
-
-    try {
-      final position = await Geolocator.getCurrentPosition();
+    _positionSubscription = _currentLocationService.getPositionStream().listen((
+      position,
+    ) {
+      final latLng = LatLng(position.latitude, position.longitude);
       if (!mounted) {
         return;
       }
 
-      final latLng = LatLng(position.latitude, position.longitude);
       setState(() {
         _currentLatLng = latLng;
       });
 
-      if (centerOnUser) {
-        _followCurrentLocation = true;
-        _selectedLatLng = latLng;
-        _hasSelection = true;
+      if (_followCurrentLocation) {
         _mapController.move(latLng, _defaultZoom);
-        await _resolveSelectedAddress(showLoader: true);
+      }
+    });
+
+    try {
+      final position = await _currentLocationService.getCurrentPosition();
+      if (!mounted) {
+        return;
+      }
+
+      if (centerOnUser) {
+        await _applyCurrentPosition(position);
+      } else {
+        final latLng = LatLng(position.latitude, position.longitude);
+        setState(() {
+          _currentLatLng = latLng;
+        });
       }
     } catch (_) {
       // Keep fallback state if GPS fix is not available yet.
     }
+  }
+
+  Future<void> _applyCurrentPosition(Position position) async {
+    final latLng = LatLng(position.latitude, position.longitude);
+    setState(() {
+      _followCurrentLocation = true;
+      _currentLatLng = latLng;
+      _selectedLatLng = latLng;
+      _hasSelection = true;
+    });
+    _mapController.move(latLng, _defaultZoom);
+    await _resolveSelectedAddress(showLoader: true);
   }
 
   void _handleSearchChanged(String value) {
@@ -275,7 +271,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       _selectedLatLng = LatLng(result.latitude, result.longitude);
       _selectedAddress = result.displayName;
       _selectedLocationTitle = _extractLocationTitle(result.displayName);
-      _locationTitleController.text = _selectedLocationTitle;
       _addressController.text = result.displayName;
       _hasSelection = true;
       _showSearchResults = false;
@@ -289,33 +284,22 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Future<void> _useCurrentLocation() async {
     setState(() {
       _isFetchingCurrentLocation = true;
+      _currentLocationError = null;
     });
 
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('Location services are turned off.');
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw Exception(
-          'Location permission is required to use current location.',
-        );
-      }
-
-      _followCurrentLocation = true;
-      await _bindCurrentLocationTracking(centerOnUser: true);
+      final position = await _currentLocationService.getCurrentPosition();
+      await _applyCurrentPosition(position);
+      await _bindCurrentLocationTracking(centerOnUser: false);
     } catch (error) {
       if (!mounted) {
         return;
       }
-      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      final message = error.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _currentLocationError = message;
+      });
+      _showMessage(message);
     } finally {
       if (mounted) {
         setState(() {
@@ -361,11 +345,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       setState(() {
         _selectedAddress = address;
         _addressController.text = address;
-        if (_locationTitleController.text.trim().isEmpty ||
-            _locationTitleController.text.trim() == _selectedLocationTitle) {
-          _selectedLocationTitle = _extractLocationTitle(address);
-          _locationTitleController.text = _selectedLocationTitle;
-        }
+        _selectedLocationTitle = _extractLocationTitle(address);
         _isResolvingAddress = false;
       });
     } catch (error) {
@@ -395,7 +375,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       LocationPickerResult(
         latitude: _selectedLatLng.latitude,
         longitude: _selectedLatLng.longitude,
-        locationTitle: _locationTitleController.text.trim(),
+        locationTitle: _selectedLocationTitle,
         address: _addressController.text.trim().isEmpty
             ? 'Lat: ${_selectedLatLng.latitude.toStringAsFixed(6)}, '
                   'Lng: ${_selectedLatLng.longitude.toStringAsFixed(6)}'
@@ -422,13 +402,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     final mediaQuery = MediaQuery.of(context);
     final theme = Theme.of(context);
     final safeBottom = mediaQuery.padding.bottom;
-    final shouldLiftBottomSheet =
-        _locationTitleFocusNode.hasFocus || _buildingFloorFocusNode.hasFocus;
+    final shouldLiftBottomSheet = _buildingFloorFocusNode.hasFocus;
     final keyboardInset = shouldLiftBottomSheet
         ? mediaQuery.viewInsets.bottom
         : 0.0;
-    final floatingButtonBottom =
-        safeBottom + _bottomSheetMinHeight + _floatingButtonGap;
     final noSearchResults =
         _showSearchResults &&
         !_isSearching &&
@@ -540,15 +517,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: floatingButtonBottom,
-                  child: _CurrentLocationButton(
-                    isLoading: _isFetchingCurrentLocation,
-                    onPressed: _useCurrentLocation,
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
                   bottom: 0,
                   child: AnimatedPadding(
                     duration: const Duration(milliseconds: 220),
@@ -571,7 +539,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget _buildHeader(ThemeData theme, bool noSearchResults) {
     return Material(
       color: Colors.white,
-      elevation: 10,
+      elevation: 14,
       shadowColor: Colors.black.withValues(alpha: 0.08),
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(_headerRadius),
@@ -581,8 +549,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
@@ -598,16 +568,29 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 ),
                 const SizedBox(width: AppSpacing.m),
                 Expanded(
-                  child: Text(
-                    'Select Location',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Location',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.neutral900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Choose a verified site pin or detect your live position.',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.neutral600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.m),
+            const SizedBox(height: 18),
             SizedBox(
               height: _controlHeight,
               child: TextField(
@@ -784,93 +767,116 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     required ThemeData theme,
     required double safeBottom,
   }) {
-    return Material(
-      color: Colors.white,
-      elevation: 20,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      borderRadius: const BorderRadius.only(
-        topLeft: Radius.circular(24),
-        topRight: Radius.circular(24),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: _bottomSheetMinHeight),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.l,
-            AppSpacing.l,
-            AppSpacing.l,
-            AppSpacing.l + safeBottom,
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.topCenter,
+      children: [
+        Material(
+          color: Colors.white,
+          elevation: 20,
+          shadowColor: Colors.black.withValues(alpha: 0.1),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFieldLabel('Location Title'),
-              const SizedBox(height: AppSpacing.s),
-              _buildInput(
-                controller: _locationTitleController,
-                focusNode: _locationTitleFocusNode,
-                hintText: 'Add location title',
-                textInputAction: TextInputAction.next,
-                onChanged: (value) {
-                  _selectedLocationTitle = value.trim();
-                },
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: _bottomSheetMinHeight),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.l,
+                20,
+                AppSpacing.l,
+                AppSpacing.l + safeBottom,
               ),
-              const SizedBox(height: AppSpacing.m),
-              _buildFieldLabel('Address'),
-              const SizedBox(height: AppSpacing.s),
-              _buildInput(
-                controller: _addressController,
-                hintText: _isResolvingAddress
-                    ? 'Resolving address...'
-                    : 'Move the map to fetch the address',
-                readOnly: true,
-                maxLines: 1,
-              ),
-              const SizedBox(height: AppSpacing.m),
-              _buildFieldLabel('Building / Floor'),
-              const SizedBox(height: AppSpacing.s),
-              _buildInput(
-                controller: _buildingFloorController,
-                focusNode: _buildingFloorFocusNode,
-                hintText: 'Building name / Floor number',
-                textInputAction: TextInputAction.done,
-                errorText: _buildingFloorError,
-                onChanged: (value) {
-                  if (_buildingFloorError != null && value.trim().isNotEmpty) {
-                    setState(() {
-                      _buildingFloorError = null;
-                    });
-                  }
-                },
-                onSubmitted: (_) => _confirmSelection(),
-              ),
-              const SizedBox(height: AppSpacing.l),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _hasSelection && !_isResolvingAddress
-                      ? _confirmSelection
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_currentLocationError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.m,
+                        vertical: AppSpacing.s,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorLight,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        _currentLocationError!,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.errorDark,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.m),
+                  ],
+                  _buildFieldLabel('Address'),
+                  const SizedBox(height: AppSpacing.s),
+                  _buildInput(
+                    controller: _addressController,
+                    hintText: _isResolvingAddress
+                        ? 'Resolving address...'
+                        : 'Move the map to fetch the address',
+                    readOnly: true,
+                    maxLines: 1,
+                  ),
+                  const SizedBox(height: AppSpacing.m),
+                  _buildFieldLabel('Building / Floor'),
+                  const SizedBox(height: AppSpacing.s),
+                  _buildInput(
+                    controller: _buildingFloorController,
+                    focusNode: _buildingFloorFocusNode,
+                    hintText: 'Building name / Floor number',
+                    textInputAction: TextInputAction.done,
+                    errorText: _buildingFloorError,
+                    onChanged: (value) {
+                      if (_buildingFloorError != null &&
+                          value.trim().isNotEmpty) {
+                        setState(() {
+                          _buildingFloorError = null;
+                        });
+                      }
+                    },
+                    onSubmitted: (_) => _confirmSelection(),
+                  ),
+                  const SizedBox(height: AppSpacing.l),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _hasSelection && !_isResolvingAddress
+                          ? _confirmSelection
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      child: Text(
+                        'Confirm location',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Confirm location',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+        Positioned(
+          top: -56,
+          child: CurrentLocationButtonWidget(
+            isLoading: _isFetchingCurrentLocation,
+            onTap: _useCurrentLocation,
+          ),
+        ),
+      ],
     );
   }
 
@@ -992,63 +998,6 @@ class _CenterPin extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CurrentLocationButton extends StatelessWidget {
-  const _CurrentLocationButton({
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.center,
-      child: Material(
-        color: Colors.white,
-        elevation: 8,
-        shadowColor: Colors.black.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
-          onTap: isLoading ? null : onPressed,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.l,
-              vertical: 12,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(
-                        Icons.my_location_rounded,
-                        size: 18,
-                        color: AppColors.primary600,
-                      ),
-                const SizedBox(width: AppSpacing.s),
-                Text(
-                  'Current Location',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.neutral900,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

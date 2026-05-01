@@ -6,13 +6,11 @@ import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
 
 class ListFilterData {
   const ListFilterData({
-    required this.searchQuery,
     this.status,
     this.date,
     this.extraSelections = const <String, String?>{},
   });
 
-  final String searchQuery;
   final String? status;
   final DateTime? date;
   final Map<String, String?> extraSelections;
@@ -36,8 +34,6 @@ class ListFilterBottomSheet extends StatefulWidget {
   const ListFilterBottomSheet({
     super.key,
     required this.title,
-    required this.searchHint,
-    required this.initialSearchQuery,
     this.statusLabel = 'Status',
     this.statusOptions = const <String>[],
     this.initialStatus,
@@ -47,8 +43,6 @@ class ListFilterBottomSheet extends StatefulWidget {
   });
 
   final String title;
-  final String searchHint;
-  final String initialSearchQuery;
   final String statusLabel;
   final List<String> statusOptions;
   final String? initialStatus;
@@ -59,8 +53,6 @@ class ListFilterBottomSheet extends StatefulWidget {
   static Future<ListFilterData?> show(
     BuildContext context, {
     required String title,
-    required String searchHint,
-    required String initialSearchQuery,
     String statusLabel = 'Status',
     List<String> statusOptions = const <String>[],
     String? initialStatus,
@@ -79,8 +71,6 @@ class ListFilterBottomSheet extends StatefulWidget {
           ),
           child: ListFilterBottomSheet(
             title: title,
-            searchHint: searchHint,
-            initialSearchQuery: initialSearchQuery,
             statusLabel: statusLabel,
             statusOptions: statusOptions,
             initialStatus: initialStatus,
@@ -98,7 +88,6 @@ class ListFilterBottomSheet extends StatefulWidget {
 }
 
 class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
-  late final TextEditingController _searchController;
   late String? _selectedStatus;
   late DateTime? _selectedDate;
   late final Map<String, String?> _extraSelections;
@@ -106,18 +95,11 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(text: widget.initialSearchQuery);
     _selectedStatus = widget.initialStatus;
     _selectedDate = widget.initialDate;
     _extraSelections = {
       for (final field in widget.extraDropdowns) field.key: field.initialValue,
     };
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _pickDate() async {
@@ -138,7 +120,6 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
 
   void _clearFilters() {
     setState(() {
-      _searchController.clear();
       _selectedStatus = null;
       _selectedDate = null;
       for (final field in widget.extraDropdowns) {
@@ -182,32 +163,9 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
               widget.title,
               style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              style: AppTextStyles.bodyMedium,
-              decoration: InputDecoration(
-                labelText: 'Search refinement',
-                hintText: widget.searchHint,
-                filled: true,
-                fillColor: AppColors.neutral50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: AppColors.neutral200),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: const BorderSide(color: AppColors.neutral200),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide(color: theme.colorScheme.primary),
-                ),
-              ),
-            ),
+            const SizedBox(height: 12),
             if (widget.statusOptions.isNotEmpty) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _selectedStatus,
                 hint: const Text('All'),
@@ -244,7 +202,7 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
               ),
             ],
             for (final field in widget.extraDropdowns) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _extraSelections[field.key],
                 hint: const Text('All'),
@@ -281,7 +239,7 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
               ),
             ],
             if (widget.showDateFilter) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Text(
                 'Date',
                 style: AppTextStyles.bodySmall.copyWith(
@@ -368,7 +326,7 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             Row(
               children: [
                 Expanded(
@@ -391,7 +349,6 @@ class _ListFilterBottomSheetState extends State<ListFilterBottomSheet> {
                       Navigator.pop(
                         context,
                         ListFilterData(
-                          searchQuery: _searchController.text.trim(),
                           status: _selectedStatus,
                           date: _selectedDate,
                           extraSelections: Map<String, String?>.from(

@@ -11,8 +11,8 @@ import 'package:guardgrey/modules/admin/profile/screens/profile_screen.dart';
 import 'package:guardgrey/modules/admin/reports/screens/reports_screen.dart';
 import 'package:guardgrey/modules/admin/settings/screens/settings_screen.dart';
 import 'package:guardgrey/modules/manager/field_visits/screens/field_visit_list_screen.dart';
+import 'package:guardgrey/modules/manager/field_visits/screens/manager_field_visit_screen.dart';
 import 'package:guardgrey/modules/manager/navigation/screens/manager_navigation_screen.dart';
-import 'package:guardgrey/modules/manager/notifications/screens/manager_notifications_screen.dart';
 import 'package:guardgrey/modules/manager/visits/screens/manager_visits_screen.dart';
 import 'package:guardgrey/routes/route_guard.dart';
 
@@ -33,7 +33,6 @@ class AppRoutes {
   static const String adminNotifications = '/admin/notifications';
 
   static const String managerMain = '/manager';
-  static const String managerNotifications = '/manager/notifications';
   static const String managerVisits = '/manager/visits';
   static const String managerFieldVisits = '/manager/field-visits';
 
@@ -105,12 +104,6 @@ class AppRoutes {
               RouteGuard.requireSignedIn(const ManagerNavigationScreen()),
           settings: routeSettings,
         );
-      case managerNotifications:
-        return MaterialPageRoute<void>(
-          builder: (_) =>
-              RouteGuard.requireSignedIn(const ManagerNotificationsScreen()),
-          settings: routeSettings,
-        );
       case managerVisits:
         return MaterialPageRoute<void>(
           builder: (_) =>
@@ -120,7 +113,7 @@ class AppRoutes {
       case managerFieldVisits:
         return MaterialPageRoute<void>(
           builder: (_) =>
-              RouteGuard.requireSignedIn(const FieldVisitListScreen()),
+              RouteGuard.requireSignedIn(const ManagerFieldVisitScreen()),
           settings: routeSettings,
         );
       default:

@@ -43,8 +43,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Reports',
-      searchHint: 'Refine by name, manager, or location...',
-      initialSearchQuery: _searchQuery,
       statusLabel: 'Report Type',
       statusOptions: const ['training', 'site_visit', 'night_visit'],
       initialStatus: _selectedType,
@@ -56,9 +54,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedType = filters.status;
       _selectedDate = filters.date;
     });

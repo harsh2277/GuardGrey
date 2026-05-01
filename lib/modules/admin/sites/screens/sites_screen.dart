@@ -65,8 +65,6 @@ class _SitesScreenState extends State<SitesScreen> implements FilterResettable {
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Sites',
-      searchHint: 'Refine by site, branch, manager...',
-      initialSearchQuery: _searchQuery,
       extraDropdowns: [
         ListFilterDropdownField(
           key: 'branchName',
@@ -82,9 +80,7 @@ class _SitesScreenState extends State<SitesScreen> implements FilterResettable {
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedBranchName = filters.extraSelections['branchName'];
     });
   }

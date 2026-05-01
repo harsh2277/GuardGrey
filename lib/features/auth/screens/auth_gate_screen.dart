@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/features/auth/models/app_role.dart';
+import 'package:guardgrey/features/permissions/services/permission_service.dart';
 import 'package:guardgrey/routes/route_guard.dart';
 import 'login_screen.dart';
 
@@ -88,7 +89,7 @@ class AuthGateScreen extends StatelessWidget {
                 );
               }
 
-              return RouteGuard.homeForRole(role);
+              return _PermissionBootstrap(child: RouteGuard.homeForRole(role));
             },
           );
         }
@@ -96,5 +97,38 @@ class AuthGateScreen extends StatelessWidget {
         return const LoginScreen();
       },
     );
+  }
+}
+
+class _PermissionBootstrap extends StatefulWidget {
+  const _PermissionBootstrap({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PermissionBootstrap> createState() => _PermissionBootstrapState();
+}
+
+class _PermissionBootstrapState extends State<_PermissionBootstrap> {
+  bool _handledPermissions = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_handledPermissions) {
+      return;
+    }
+    _handledPermissions = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      await PermissionService.instance.handleAppPermissions(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }

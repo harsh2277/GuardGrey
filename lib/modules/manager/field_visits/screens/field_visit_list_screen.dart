@@ -51,8 +51,6 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Field Visits',
-      searchHint: 'Refine by site, manager, or location...',
-      initialSearchQuery: _searchQuery,
       initialDate: _selectedDate,
       showDateFilter: true,
       extraDropdowns: [
@@ -69,9 +67,7 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedManagerName = filters.extraSelections['managerName'];
       _selectedDate = filters.date;
     });

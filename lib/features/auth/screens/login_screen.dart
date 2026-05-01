@@ -280,7 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Use Seed Database to create sample reports, field visits, managers, sites, and live tracking data before login.',
+                  'Use Seed Database to create the full sample Firestore setup: branches, clients, managers, sites, attendance, visits, field visits, manager leave, live tracking, reports, and notifications before login.',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.neutral500,
                   ),

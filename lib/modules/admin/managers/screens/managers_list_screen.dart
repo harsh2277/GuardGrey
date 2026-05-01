@@ -68,8 +68,6 @@ class _ManagersListScreenState extends State<ManagersListScreen>
     final filters = await ListFilterBottomSheet.show(
       context,
       title: 'Filter Managers',
-      searchHint: 'Refine by manager, email, phone...',
-      initialSearchQuery: _searchQuery,
       extraDropdowns: [
         ListFilterDropdownField(
           key: 'siteName',
@@ -91,9 +89,7 @@ class _ManagersListScreenState extends State<ManagersListScreen>
       return;
     }
 
-    _searchController.text = filters.searchQuery;
     setState(() {
-      _searchQuery = filters.searchQuery;
       _selectedSiteName = filters.extraSelections['siteName'];
       _selectedBranchName = filters.extraSelections['branchName'];
     });
