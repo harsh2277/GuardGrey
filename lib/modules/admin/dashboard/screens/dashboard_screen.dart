@@ -443,7 +443,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       stream: _repository.watchAttendance(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          print('Dashboard attendance summary error: ${snapshot.error}');
+          debugPrint('Dashboard attendance summary error: ${snapshot.error}');
           return _buildSummaryContainer(
             child: _buildFallbackText('Unable to load attendance.'),
           );
@@ -739,7 +739,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _hasDashboardError(Object? a, Object? b, [Object? c, Object? d]) {
     final errors = [a, b, c, d].where((error) => error != null).toList();
     if (errors.isNotEmpty) {
-      print('Dashboard stream error: ${errors.first}');
+      debugPrint('Dashboard stream error: ${errors.first}');
       return true;
     }
     return false;

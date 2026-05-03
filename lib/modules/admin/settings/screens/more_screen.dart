@@ -23,6 +23,11 @@ class MoreScreen extends StatelessWidget {
             title: 'Branches',
             routeName: AppRoutes.adminBranches,
           ),
+          _MoreItem(
+            icon: Icons.event_note_rounded,
+            title: 'Manager Leave',
+            routeName: AppRoutes.adminLeaves,
+          ),
         ],
       ),
       _MoreSection(

@@ -5,6 +5,7 @@ import 'package:guardgrey/features/auth/screens/login_screen.dart';
 import 'package:guardgrey/features/notifications/screens/notifications_screen.dart';
 import 'package:guardgrey/modules/admin/branches/screens/branches_screen.dart';
 import 'package:guardgrey/modules/admin/live_tracking/screens/live_tracking_screen.dart';
+import 'package:guardgrey/modules/admin/leave/screens/admin_leave_screen.dart';
 import 'package:guardgrey/modules/admin/managers/screens/managers_list_screen.dart';
 import 'package:guardgrey/modules/admin/navigation/screens/main_navigation_screen.dart';
 import 'package:guardgrey/modules/admin/profile/screens/profile_screen.dart';
@@ -26,6 +27,7 @@ class AppRoutes {
   static const String adminManagers = '/admin/managers';
   static const String adminBranches = '/admin/branches';
   static const String adminReports = '/admin/reports';
+  static const String adminLeaves = '/admin/leaves';
   static const String adminFieldVisits = '/field-visits';
   static const String adminLiveTracking = '/admin/live-tracking';
   static const String adminProfile = '/admin/profile';
@@ -68,6 +70,11 @@ class AppRoutes {
       case adminReports:
         return MaterialPageRoute<void>(
           builder: (_) => RouteGuard.requireSignedIn(const ReportsScreen()),
+          settings: routeSettings,
+        );
+      case adminLeaves:
+        return MaterialPageRoute<void>(
+          builder: (_) => RouteGuard.requireSignedIn(const AdminLeaveScreen()),
           settings: routeSettings,
         );
       case adminFieldVisits:

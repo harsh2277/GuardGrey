@@ -19,12 +19,12 @@ class ManagerVisitRepository {
     }
 
     return _visits
-        .where('managerId', isEqualTo: managerId.trim())
         .orderBy('date', descending: true)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => ManagerVisitEntry.fromMap(doc.id, doc.data()))
+              .where((visit) => visit.managerId == managerId.trim())
               .where((visit) => !visit.isDeleted)
               .toList(growable: false),
         );

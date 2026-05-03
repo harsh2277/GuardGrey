@@ -6,16 +6,17 @@ import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
-import 'package:guardgrey/modules/admin/dashboard/widgets/kpi_card.dart';
 import 'package:guardgrey/modules/manager/attendance/screens/manager_attendance_screen.dart';
 import 'package:guardgrey/modules/manager/common/services/manager_session_service.dart';
 import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
 import 'package:guardgrey/modules/manager/field_visits/screens/manager_field_visit_screen.dart';
+import 'package:guardgrey/modules/manager/notifications/screens/manager_notifications_screen.dart';
+import 'package:guardgrey/modules/manager/sites/screens/manager_site_detail_screen.dart';
+import 'package:guardgrey/modules/manager/sites/screens/manager_sites_screen.dart';
 import 'package:guardgrey/modules/manager/visits/models/manager_visit_entry.dart';
 import 'package:guardgrey/modules/manager/visits/repositories/manager_visit_repository.dart';
 import 'package:guardgrey/modules/manager/visits/screens/manager_visit_form_screen.dart';
 import 'package:guardgrey/modules/manager/visits/screens/manager_visits_screen.dart';
-import 'package:guardgrey/modules/manager/sites/screens/manager_sites_screen.dart';
 
 class ManagerDashboardScreen extends StatelessWidget {
   const ManagerDashboardScreen({super.key});
@@ -81,35 +82,58 @@ class ManagerDashboardScreen extends StatelessWidget {
 
                 return Scaffold(
                   backgroundColor: AppColors.backgroundLight,
-                  body: SafeArea(
-                    bottom: false,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  appBar: AppBar(
+                    backgroundColor: AppColors.backgroundLight,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Dashboard',
-                          style: AppTextStyles.headingMedium.copyWith(
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
+                          style: AppTextStyles.title.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
                         Text(
                           'Welcome back, ${manager.name.split(' ').first}',
-                          style: AppTextStyles.bodyMedium.copyWith(
+                          style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.neutral500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 18),
+                      ],
+                    ),
+                    actions: [
+                      IconButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ManagerNotificationsScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.notifications_none_rounded),
+                        tooltip: 'Notifications',
+                      ),
+                    ],
+                  ),
+                  body: SafeArea(
+                    bottom: false,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+                      children: [
                         const ManagerSectionTitle('Overview'),
                         const SizedBox(height: 8),
-                        GridView.count(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
+                        GridView(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                mainAxisExtent: 92,
+                              ),
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          childAspectRatio: 1.35,
                           children: [
                             _KpiCard(
                               label: 'Assigned Sites',
@@ -219,6 +243,42 @@ class ManagerDashboardScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 18),
+                        const ManagerSectionTitle('Assigned Sites Snapshot'),
+                        const SizedBox(height: 12),
+                        if (assignedSites.isEmpty)
+                          const ManagerEmptyState(
+                            title: 'No assigned sites',
+                            message:
+                                'Assigned sites will appear here when the manager workspace is synced.',
+                          )
+                        else
+                          ...assignedSites
+                              .take(3)
+                              .map(
+                                (site) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: ManagerListCard(
+                                    title: site.name,
+                                    subtitle: site.address.isEmpty
+                                        ? site.location
+                                        : site.address,
+                                    meta: site.buildingFloor.isEmpty
+                                        ? 'Site assigned'
+                                        : site.buildingFloor,
+                                    icon: Icons.location_city_rounded,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ManagerSiteDetailScreen(
+                                          site: site,
+                                          managerId: manager.id,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                        const SizedBox(height: 6),
                         const ManagerSectionTitle('Today\'s Activity'),
                         const SizedBox(height: 12),
                         if (todayVisits.isEmpty)
@@ -236,11 +296,27 @@ class ManagerDashboardScreen extends StatelessWidget {
                                 subtitle: formatDateTimeLabel(
                                   visit.scheduledAt,
                                 ),
-                                meta: visit.notes.isEmpty
-                                    ? 'No notes added'
-                                    : visit.notes,
+                                meta:
+                                    '${visit.visitType} | ${visit.notes.isEmpty ? 'No notes added' : visit.notes}',
                                 status: visit.status,
                                 icon: Icons.assignment_turned_in_outlined,
+                                onTap: () {
+                                  final site = assignedSites
+                                      .where((item) => item.id == visit.siteId)
+                                      .firstOrNull;
+                                  if (site == null) {
+                                    return;
+                                  }
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ManagerSiteDetailScreen(
+                                        site: site,
+                                        managerId: manager.id,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
@@ -277,12 +353,52 @@ class _KpiCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
-      child: KPICard(
-        title: label,
-        value: value.padLeft(2, '0'),
-        icon: icon,
-        iconColor: iconColor,
-        height: 96,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.neutral200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value.padLeft(2, '0'),
+                    style: AppTextStyles.headingSmall.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.neutral500,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

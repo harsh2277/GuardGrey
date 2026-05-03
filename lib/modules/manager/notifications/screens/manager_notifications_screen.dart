@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'package:guardgrey/modules/manager/common/widgets/manager_placeholder_page.dart';
+import 'package:guardgrey/features/notifications/screens/notifications_screen.dart';
 
 class ManagerNotificationsScreen extends StatelessWidget {
   const ManagerNotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const ManagerPlaceholderPage(
-      title: 'Notifications',
-      label: 'Notifications',
-    );
+    return const NotificationsScreen(title: 'Notifications');
   }
 }

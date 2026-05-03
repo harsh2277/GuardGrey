@@ -91,7 +91,6 @@ class ManagerVisitDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    ManagerStatusChip(label: visit.status),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -99,6 +98,14 @@ class ManagerVisitDetailScreen extends StatelessWidget {
                   formatDateTimeLabel(visit.scheduledAt),
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.neutral500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  visit.visitType,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.primary700,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -110,9 +117,9 @@ class ManagerVisitDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          if (visit.checklist.isNotEmpty) ...[
+          if (visit.questions.isNotEmpty) ...[
             Text(
-              'Checklist',
+              'Question Responses',
               style: AppTextStyles.bodyLarge.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -121,22 +128,54 @@ class ManagerVisitDetailScreen extends StatelessWidget {
             ManagerSurfaceCard(
               child: Column(
                 children: [
-                  for (final item in visit.checklist) ...[
+                  for (final item in visit.questions) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        item.question,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(
-                          Icons.check_circle_outline_rounded,
-                          color: AppColors.success,
+                        Icon(
+                          item.answer == true
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.cancel_outlined,
+                          color: item.answer == true
+                              ? AppColors.success
+                              : AppColors.error,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(item, style: AppTextStyles.bodyMedium),
+                          child: Text(
+                            item.answerLabel,
+                            style: AppTextStyles.bodyMedium,
+                          ),
                         ),
                       ],
                     ),
-                    if (item != visit.checklist.last)
-                      const SizedBox(height: 10),
+                    if (item.note.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          item.note,
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.neutral500,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (item != visit.questions.last) ...[
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: AppColors.neutral200),
+                      const SizedBox(height: 12),
+                    ],
                   ],
                 ],
               ),

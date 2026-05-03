@@ -95,7 +95,7 @@ class VisitTable extends StatelessWidget {
 
   Widget _buildStatusCell(String status) {
     final statusColor = _statusColor(status);
-    final statusBackground = statusColor.withOpacity(0.12);
+    final statusBackground = statusColor.withValues(alpha: 0.12);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

@@ -13,15 +13,8 @@ class ManagerLeaveRepository {
   CollectionReference<Map<String, dynamic>> get _leaves =>
       _firestore.collection('manager_leaves');
 
-  Stream<List<ManagerLeaveRequest>> watchLeaves(String managerId) {
-    if (managerId.trim().isEmpty) {
-      return Stream<List<ManagerLeaveRequest>>.value(
-        const <ManagerLeaveRequest>[],
-      );
-    }
-
+  Stream<List<ManagerLeaveRequest>> watchAllLeaves() {
     return _leaves
-        .where('managerId', isEqualTo: managerId.trim())
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
@@ -31,10 +24,35 @@ class ManagerLeaveRepository {
         );
   }
 
+  Stream<List<ManagerLeaveRequest>> watchLeaves(String managerId) {
+    if (managerId.trim().isEmpty) {
+      return Stream<List<ManagerLeaveRequest>>.value(
+        const <ManagerLeaveRequest>[],
+      );
+    }
+
+    return _leaves
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => ManagerLeaveRequest.fromMap(doc.id, doc.data()))
+              .where((leave) => leave.managerId == managerId.trim())
+              .toList(growable: false),
+        );
+  }
+
   Future<void> saveLeave(ManagerLeaveRequest request) async {
     await _leaves
         .doc(request.id)
         .set(request.toFirestore(), SetOptions(merge: true));
+  }
+
+  Future<void> updateLeaveStatus(String leaveId, String status) async {
+    await _leaves.doc(leaveId).set({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> deleteLeave(String leaveId) => _leaves.doc(leaveId).delete();

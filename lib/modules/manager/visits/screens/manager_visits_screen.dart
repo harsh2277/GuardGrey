@@ -4,9 +4,7 @@ import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/core/widgets/admin_search_bar.dart';
-import 'package:guardgrey/core/widgets/list_filter_bottom_sheet.dart';
 import 'package:guardgrey/core/widgets/primary_floating_add_button.dart';
-import 'package:guardgrey/core/widgets/surface_icon_button.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
@@ -37,40 +35,13 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String? _statusFilter;
-  String? _siteFilter;
+  String? _siteFilterId;
   DateTime? _dateFilter;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _openFilters(List<SiteModel> sites) async {
-    final filters = await ListFilterBottomSheet.show(
-      context,
-      title: 'Filter Visits',
-      initialDate: _dateFilter,
-      initialStatus: _statusFilter,
-      showDateFilter: true,
-      statusOptions: const <String>['Pending', 'Completed', 'In Progress'],
-      extraDropdowns: [
-        ListFilterDropdownField(
-          key: 'siteId',
-          label: 'Site',
-          options: sites.map((site) => site.name).toList(growable: false),
-          initialValue: _siteFilter,
-        ),
-      ],
-    );
-    if (filters == null) {
-      return;
-    }
-    setState(() {
-      _statusFilter = filters.status;
-      _siteFilter = filters.extraSelections['siteId'];
-      _dateFilter = filters.date;
-    });
   }
 
   Future<void> _openVisitForm({
@@ -89,10 +60,7 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
         ),
       ),
     );
-    if (result == true) {
-      if (!mounted) {
-        return;
-      }
+    if (result == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppColors.success,
@@ -105,6 +73,170 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _openFilters(List<SiteModel> sites) async {
+    DateTime? tempDate = _dateFilter;
+    String? tempSiteId = _siteFilterId;
+    String? tempStatus = _statusFilter;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                18,
+                18,
+                24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Filter Visits',
+                    style: AppTextStyles.title.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: tempDate ?? DateTime.now(),
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 30),
+                        ),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (pickedDate == null) {
+                        return;
+                      }
+                      setModalState(() {
+                        tempDate = pickedDate;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Visit date',
+                        suffixIcon: tempDate == null
+                            ? const Icon(Icons.calendar_today_outlined)
+                            : IconButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    tempDate = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                      ),
+                      child: Text(
+                        tempDate == null
+                            ? 'All dates'
+                            : GuardGreyRepository.formatDate(tempDate),
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: tempSiteId,
+                    decoration: const InputDecoration(labelText: 'Site'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All sites'),
+                      ),
+                      ...sites.map(
+                        (site) => DropdownMenuItem<String?>(
+                          value: site.id,
+                          child: Text(site.name),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setModalState(() {
+                        tempSiteId = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: tempStatus,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: const [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All status'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'Pending',
+                        child: Text('Pending'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'Completed',
+                        child: Text('Completed'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'In Progress',
+                        child: Text('In Progress'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setModalState(() {
+                        tempStatus = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _dateFilter = null;
+                              _siteFilterId = null;
+                              _statusFilter = null;
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Clear'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            setState(() {
+                              _dateFilter = tempDate;
+                              _siteFilterId = tempSiteId;
+                              _statusFilter = tempStatus;
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Apply'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -156,8 +288,8 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                                     visit.status != _statusFilter) {
                                   return false;
                                 }
-                                if (_siteFilter != null &&
-                                    visit.siteName != _siteFilter) {
+                                if (_siteFilterId != null &&
+                                    visit.siteId != _siteFilterId) {
                                   return false;
                                 }
                                 if (_dateFilter != null &&
@@ -172,7 +304,7 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                               .toList(growable: false);
 
                       return Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -196,13 +328,19 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                SurfaceIconButton(
-                                  icon: Icons.tune_rounded,
-                                  onTap: () => _openFilters(sites),
-                                  backgroundColor: AppColors.primary600,
-                                  borderColor: AppColors.primary600,
-                                  iconColor: Colors.white,
-                                  borderRadius: 25,
+                                SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child: FilledButton(
+                                    onPressed: () => _openFilters(sites),
+                                    style: FilledButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                    ),
+                                    child: const Icon(Icons.tune_rounded),
+                                  ),
                                 ),
                               ],
                             ),
@@ -223,7 +361,8 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                                           const SizedBox(height: 12),
                                       itemBuilder: (context, index) {
                                         final visit = visits[index];
-                                        return ManagerListCard(
+                                        return _VisitCard(
+                                          visit: visit,
                                           onTap: () async {
                                             final result =
                                                 await Navigator.push<bool>(
@@ -245,10 +384,7 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                                                         ),
                                                   ),
                                                 );
-                                            if (result == true) {
-                                              if (!mounted) {
-                                                return;
-                                              }
+                                            if (result == true && mounted) {
                                               ScaffoldMessenger.of(
                                                 this.context,
                                               ).showSnackBar(
@@ -267,16 +403,6 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                                               );
                                             }
                                           },
-                                          title: visit.siteName,
-                                          subtitle: formatDateTimeLabel(
-                                            visit.scheduledAt,
-                                          ),
-                                          meta: visit.notes.isEmpty
-                                              ? 'No notes added.'
-                                              : visit.notes,
-                                          status: visit.status,
-                                          icon: Icons
-                                              .assignment_turned_in_outlined,
                                         );
                                       },
                                     ),
@@ -323,6 +449,84 @@ class _ManagerVisitsScreenState extends State<ManagerVisitsScreen> {
                 ),
         );
       },
+    );
+  }
+}
+
+class _VisitCard extends StatelessWidget {
+  const _VisitCard({required this.visit, required this.onTap});
+
+  final ManagerVisitEntry visit;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ManagerSurfaceCard(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primary50,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.assignment_turned_in_outlined,
+              color: AppColors.primary600,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  visit.siteName,
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.neutral900,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  formatDateTimeLabel(visit.scheduledAt),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.neutral600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  visit.visitType,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.primary700,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (visit.notes.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    visit.notes,
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.neutral500,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 16,
+            color: AppColors.neutral400,
+          ),
+        ],
+      ),
     );
   }
 }

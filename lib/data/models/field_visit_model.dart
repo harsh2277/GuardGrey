@@ -9,8 +9,10 @@ class FieldVisitModel {
     required this.managerName,
     required this.phone,
     required this.profileImage,
+    required this.visitType,
     required this.siteName,
-    required this.description,
+    required this.notes,
+    required this.status,
     required this.location,
     required this.imageUrls,
     required this.dateTime,
@@ -22,8 +24,10 @@ class FieldVisitModel {
   final String managerName;
   final String phone;
   final String profileImage;
+  final String visitType;
   final String siteName;
-  final String description;
+  final String notes;
+  final String status;
   final AppLocation location;
   final List<String> imageUrls;
   final DateTime dateTime;
@@ -36,8 +40,10 @@ class FieldVisitModel {
       'managerName': managerName,
       'phone': phone,
       'profileImage': profileImage,
+      'visitType': visitType,
       'siteName': siteName,
-      'description': description,
+      'notes': notes,
+      'status': status,
       'location': location.toMap(),
       'imageUrls': imageUrls,
       'dateTime': Timestamp.fromDate(dateTime),

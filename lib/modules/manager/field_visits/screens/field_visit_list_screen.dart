@@ -5,14 +5,13 @@ import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/core/widgets/admin_search_bar.dart';
-import 'package:guardgrey/core/widgets/list_filter_bottom_sheet.dart';
 import 'package:guardgrey/core/widgets/primary_floating_add_button.dart';
-import 'package:guardgrey/core/widgets/surface_icon_button.dart';
 import 'package:guardgrey/data/models/field_visit_model.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/repositories/field_visit_repository.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
 import 'package:guardgrey/data/repositories/manager_repository.dart';
+import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
 
 import 'field_visit_detail_screen.dart';
 import 'field_visit_form_screen.dart';
@@ -29,7 +28,7 @@ class FieldVisitListScreen extends StatefulWidget {
 class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
   late final TextEditingController _searchController;
   String _searchQuery = '';
-  String? _selectedManagerName;
+  String? _selectedStatus;
   DateTime? _selectedDate;
 
   @override
@@ -44,33 +43,133 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
     super.dispose();
   }
 
-  Future<void> _openFilters(List<FieldVisitModel> visits) async {
-    final managerOptions =
-        visits.map((visit) => visit.managerName).toSet().toList()..sort();
+  Future<void> _openFilters() async {
+    DateTime? tempDate = _selectedDate;
+    String? tempStatus = _selectedStatus;
 
-    final filters = await ListFilterBottomSheet.show(
-      context,
-      title: 'Filter Field Visits',
-      initialDate: _selectedDate,
-      showDateFilter: true,
-      extraDropdowns: [
-        ListFilterDropdownField(
-          key: 'managerName',
-          label: 'Manager',
-          options: managerOptions,
-          initialValue: _selectedManagerName,
-        ),
-      ],
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Filter Field Visits',
+                    style: AppTextStyles.title.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: tempDate ?? DateTime.now(),
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 30),
+                        ),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (pickedDate == null) {
+                        return;
+                      }
+                      setModalState(() {
+                        tempDate = pickedDate;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Date',
+                        suffixIcon: tempDate == null
+                            ? const Icon(Icons.calendar_today_outlined)
+                            : IconButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    tempDate = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                      ),
+                      child: Text(
+                        tempDate == null
+                            ? 'All dates'
+                            : GuardGreyRepository.formatDate(tempDate),
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: tempStatus,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: const [
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All status'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'Submitted',
+                        child: Text('Submitted'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'Completed',
+                        child: Text('Completed'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setModalState(() {
+                        tempStatus = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = null;
+                              _selectedStatus = null;
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Clear'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = tempDate;
+                              _selectedStatus = tempStatus;
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Apply'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
-
-    if (filters == null) {
-      return;
-    }
-
-    setState(() {
-      _selectedManagerName = filters.extraSelections['managerName'];
-      _selectedDate = filters.date;
-    });
   }
 
   List<FieldVisitModel> _filterVisits(
@@ -90,10 +189,9 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
               visit.siteName.toLowerCase().contains(query) ||
               visit.managerName.toLowerCase().contains(query) ||
               visit.location.address.toLowerCase().contains(query) ||
-              visit.description.toLowerCase().contains(query);
-          final matchesManagerFilter =
-              _selectedManagerName == null ||
-              visit.managerName == _selectedManagerName;
+              visit.notes.toLowerCase().contains(query);
+          final matchesStatus =
+              _selectedStatus == null || visit.status == _selectedStatus;
           final matchesDate =
               _selectedDate == null ||
               formatDateLabel(visit.dateTime) ==
@@ -101,7 +199,7 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
           return matchesManager &&
               matchesSite &&
               matchesQuery &&
-              matchesManagerFilter &&
+              matchesStatus &&
               matchesDate;
         })
         .toList(growable: false);
@@ -130,17 +228,26 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
               manager == null) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          final canAddVisit = manager != null;
+          if (manager == null) {
+            return const ManagerEmptyState(
+              title: 'No manager workspace data',
+              message:
+                  'Field visits will appear after the manager profile is available.',
+            );
+          }
 
           return StreamBuilder<List<FieldVisitModel>>(
             stream: FieldVisitRepository.instance.watchFieldVisits(),
             builder: (context, snapshot) {
               final allVisits = snapshot.data ?? const <FieldVisitModel>[];
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  allVisits.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
               final visits = _filterVisits(allVisits, manager: manager);
 
               return Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
                 child: Column(
                   children: [
                     Row(
@@ -158,100 +265,51 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        SurfaceIconButton(
-                          icon: Icons.tune_rounded,
-                          onTap: () => _openFilters(allVisits),
-                          backgroundColor: AppColors.primary600,
-                          borderColor: AppColors.primary600,
-                          iconColor: Colors.white,
-                          borderRadius: 25,
+                        SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: FilledButton(
+                            onPressed: _openFilters,
+                            style: FilledButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Icon(Icons.tune_rounded),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Expanded(
                       child: visits.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No field visits match the current search or filters.',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.bodyLarge.copyWith(
-                                  color: AppColors.neutral500,
-                                ),
-                              ),
+                          ? const ManagerEmptyState(
+                              title: 'No field visits found',
+                              message:
+                                  'Completed field visits will appear here after submission.',
                             )
                           : ListView.separated(
-                              padding: EdgeInsets.only(
-                                bottom: canAddVisit ? 96 : 0,
-                              ),
+                              padding: const EdgeInsets.only(bottom: 96),
                               itemCount: visits.length,
                               separatorBuilder: (context, index) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, index) {
                                 final visit = visits[index];
-                                return Material(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(18),
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(18),
-                                    onTap: () => Navigator.push<void>(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => FieldVisitDetailScreen(
-                                          visitId: visit.id,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(18),
-                                        border: Border.all(
-                                          color: AppColors.neutral200,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            visit.siteName,
-                                            style: AppTextStyles.bodyLarge
-                                                .copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            visit.managerName,
-                                            style: AppTextStyles.bodySmall
-                                                .copyWith(
-                                                  color: AppColors.primary700,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            formatDateTimeLabel(visit.dateTime),
-                                            style: AppTextStyles.bodyMedium
-                                                .copyWith(
-                                                  color: AppColors.neutral500,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            visit.description,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: AppTextStyles.bodyMedium
-                                                .copyWith(
-                                                  color: AppColors.neutral700,
-                                                ),
-                                          ),
-                                        ],
+                                return ManagerListCard(
+                                  onTap: () => Navigator.push<void>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FieldVisitDetailScreen(
+                                        visitId: visit.id,
                                       ),
                                     ),
                                   ),
+                                  title: visit.siteName,
+                                  subtitle: formatDateTimeLabel(visit.dateTime),
+                                  meta: visit.notes,
+                                  status: visit.status,
+                                  icon: Icons.pin_drop_outlined,
                                 );
                               },
                             ),
@@ -272,6 +330,9 @@ class _FieldVisitListScreenState extends State<FieldVisitListScreen> {
       stream: ManagerRepository.instance.watchManagerByEmail(email),
       builder: (context, snapshot) {
         final manager = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
         if (manager == null) {
           return const SizedBox.shrink();
         }

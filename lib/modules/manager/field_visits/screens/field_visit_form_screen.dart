@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,6 +17,7 @@ import 'package:guardgrey/data/repositories/manager_repository.dart';
 import 'package:guardgrey/data/services/firebase_storage_service.dart';
 import 'package:guardgrey/features/location/models/location_picker_result.dart';
 import 'package:guardgrey/features/location/screens/location_picker_screen.dart';
+import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
 
 class FieldVisitFormScreen extends StatefulWidget {
   const FieldVisitFormScreen({super.key, this.initialSiteName});
@@ -28,12 +31,14 @@ class FieldVisitFormScreen extends StatefulWidget {
 class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _siteNameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _notesController = TextEditingController();
   final _picker = ImagePicker();
   final _storage = FirebaseStorageService.instance;
   final _repository = FieldVisitRepository.instance;
   final _managerRepository = ManagerRepository.instance;
+
   bool _isSaving = false;
+  bool _didAutofillLocation = false;
   DateTime _selectedDateTime = DateTime.now();
   final List<XFile> _pickedImages = <XFile>[];
   double? _latitude;
@@ -49,8 +54,18 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
   @override
   void dispose() {
     _siteNameController.dispose();
-    _descriptionController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  void _autofillLocation(ManagerLiveLocationModel? currentLocation) {
+    if (_didAutofillLocation || currentLocation == null) {
+      return;
+    }
+    _didAutofillLocation = true;
+    _latitude = currentLocation.checkInLocation.lat;
+    _longitude = currentLocation.checkInLocation.lng;
+    _address = currentLocation.checkInLocation.address;
   }
 
   Future<void> _openLocationPicker() async {
@@ -153,8 +168,10 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
         managerName: manager.name,
         phone: manager.phone,
         profileImage: manager.profileImage,
+        visitType: 'Field Visit',
         siteName: _siteNameController.text.trim(),
-        description: _descriptionController.text.trim(),
+        notes: _notesController.text.trim(),
+        status: 'Submitted',
         location: AppLocation(
           lat: _latitude!,
           lng: _longitude!,
@@ -219,6 +236,9 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
+        backgroundColor: AppColors.backgroundLight,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           'Add Field Visit',
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
@@ -232,13 +252,10 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
           }
           final manager = managerSnapshot.data;
           if (manager == null) {
-            return Center(
-              child: Text(
-                'Manager profile is not available.',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: AppColors.neutral500,
-                ),
-              ),
+            return const ManagerEmptyState(
+              title: 'Manager profile unavailable',
+              message:
+                  'Field visits can be created after manager data is synced.',
             );
           }
           return StreamBuilder<List<ManagerLiveLocationModel>>(
@@ -248,127 +265,143 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
                   (locationSnapshot.data ?? const <ManagerLiveLocationModel>[])
                       .where((item) => item.managerId == manager.id)
                       .firstOrNull;
+              _autofillLocation(currentLocation);
+
               return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildLabel('Site Name'),
+                      const ManagerFormLabel('Site / Visit Name'),
                       const SizedBox(height: 8),
                       _buildTextField(
                         controller: _siteNameController,
-                        hintText: 'Enter site name',
+                        hintText: 'Enter site or visit location name',
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Site name is required';
+                            return 'Visit location is required';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 18),
-                      _buildLabel('Description'),
-                      const SizedBox(height: 8),
-                      _buildTextField(
-                        controller: _descriptionController,
-                        hintText: 'Describe this field visit',
-                        maxLines: 4,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Description is required';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 18),
-                      _buildLabel('Date & Time'),
+                      const SizedBox(height: 12),
+                      const ManagerFormLabel('Visit Date & Time'),
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: _selectDateTime,
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AppColors.neutral200),
-                          ),
-                          child: Text(
-                            formatDateTimeLabel(_selectedDateTime),
-                            style: AppTextStyles.bodyLarge,
+                        borderRadius: BorderRadius.circular(20),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  formatDateTimeLabel(_selectedDateTime),
+                                  style: AppTextStyles.bodyMedium,
+                                ),
+                              ),
+                              const Icon(Icons.schedule_outlined, size: 18),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      _buildLabel('Location'),
+                      const SizedBox(height: 12),
+                      const ManagerFormLabel('Location'),
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: _openLocationPicker,
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AppColors.neutral200),
-                          ),
-                          child: Text(
-                            _address.isEmpty
-                                ? 'Pick location on map'
-                                : _address,
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: _address.isEmpty
-                                  ? AppColors.neutral500
-                                  : AppColors.neutral800,
-                            ),
+                        borderRadius: BorderRadius.circular(20),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _address.isEmpty
+                                      ? 'Location will auto-fill from your latest live location'
+                                      : _address,
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: _address.isEmpty
+                                        ? AppColors.neutral500
+                                        : AppColors.neutral800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              const Icon(Icons.edit_location_alt_outlined),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
-                      _buildLabel('Images (max 5)'),
+                      const SizedBox(height: 12),
+                      const ManagerFormLabel('Notes'),
                       const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: _pickImages,
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: const Text('Select Images'),
+                      _buildTextField(
+                        controller: _notesController,
+                        hintText: 'Add inspection notes or follow-up details',
+                        maxLines: 4,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Notes are required';
+                          }
+                          return null;
+                        },
                       ),
-                      if (_pickedImages.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: ManagerFormLabel('Photo Upload'),
+                          ),
+                          TextButton.icon(
+                            onPressed: _pickImages,
+                            icon: const Icon(Icons.photo_library_outlined),
+                            label: const Text('Add photos'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      if (_pickedImages.isEmpty)
+                        Text(
+                          'Photos are optional but recommended for proof.',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.neutral500,
+                          ),
+                        )
+                      else
+                        GridView.count(
+                          crossAxisCount: 3,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
                           children: _pickedImages
+                              .asMap()
+                              .entries
                               .map(
-                                (file) => Chip(
-                                  label: Text(file.name),
-                                  onDeleted: () => setState(
-                                    () => _pickedImages.remove(file),
-                                  ),
+                                (entry) => _PickedImageTile(
+                                  bytesFuture: entry.value.readAsBytes(),
+                                  onRemove: () {
+                                    setState(() {
+                                      _pickedImages.removeAt(entry.key);
+                                    });
+                                  },
                                 ),
                               )
                               .toList(growable: false),
                         ),
-                      ],
                       const SizedBox(height: 18),
-                      if (currentLocation != null)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary50,
-                            borderRadius: BorderRadius.circular(18),
-                          ),
+                      if (_address.isNotEmpty)
+                        ManagerSurfaceCard(
+                          padding: const EdgeInsets.all(14),
                           child: Text(
-                            'Current live location: ${currentLocation.checkInLocation.address}',
-                            style: AppTextStyles.bodyMedium.copyWith(
+                            'Auto-filled location: $_address',
+                            style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.primary700,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -379,12 +412,6 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
                           onPressed: _isSaving
                               ? null
                               : () => _save(manager, currentLocation),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
                           child: Text(
                             _isSaving ? 'Saving...' : 'Save Field Visit',
                           ),
@@ -401,16 +428,6 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
     );
   }
 
-  Widget _buildLabel(String label) {
-    return Text(
-      label,
-      style: AppTextStyles.bodyMedium.copyWith(
-        fontWeight: FontWeight.w600,
-        color: AppColors.neutral800,
-      ),
-    );
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String hintText,
@@ -421,23 +438,52 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
       controller: controller,
       validator: validator,
       maxLines: maxLines,
-      decoration: InputDecoration(
-        hintText: hintText,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.neutral200),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.neutral200),
-        ),
-      ),
+      decoration: InputDecoration(hintText: hintText),
     );
   }
 }
 
-extension<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
+class _PickedImageTile extends StatelessWidget {
+  const _PickedImageTile({required this.bytesFuture, required this.onRemove});
+
+  final Future<Uint8List> bytesFuture;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: FutureBuilder<Uint8List>(
+              future: bytesFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Container(color: AppColors.neutral100);
+                }
+                return Image.memory(snapshot.data!, fit: BoxFit.cover);
+              },
+            ),
+          ),
+        ),
+        Positioned(
+          top: 6,
+          right: 6,
+          child: InkWell(
+            onTap: onRemove,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, size: 16, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

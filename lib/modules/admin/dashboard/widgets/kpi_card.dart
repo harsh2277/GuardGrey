@@ -35,7 +35,7 @@ class KPICard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (iconColor ?? AppColors.primary600).withOpacity(0.1),
+              color: (iconColor ?? AppColors.primary600).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

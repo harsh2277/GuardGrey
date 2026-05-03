@@ -5,10 +5,12 @@ class ManagerAttendanceEntry {
     required this.id,
     required this.managerId,
     required this.managerName,
-    required this.siteId,
-    required this.siteName,
     required this.status,
     required this.date,
+    this.siteId = '',
+    this.siteName = '',
+    this.latitude,
+    this.longitude,
     this.checkInAt,
     this.checkOutAt,
   });
@@ -20,6 +22,8 @@ class ManagerAttendanceEntry {
   final String siteName;
   final String status;
   final DateTime date;
+  final double? latitude;
+  final double? longitude;
   final DateTime? checkInAt;
   final DateTime? checkOutAt;
 
@@ -33,6 +37,8 @@ class ManagerAttendanceEntry {
       'siteName': siteName,
       'status': status,
       'date': Timestamp.fromDate(date),
+      'latitude': latitude,
+      'longitude': longitude,
       'checkInAt': checkInAt == null ? null : Timestamp.fromDate(checkInAt!),
       'checkOutAt': checkOutAt == null ? null : Timestamp.fromDate(checkOutAt!),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -61,6 +67,8 @@ class ManagerAttendanceEntry {
       siteName: (data['siteName'] as String? ?? '').trim(),
       status: (data['status'] as String? ?? '').trim(),
       date: toDateTime(data['date']) ?? DateTime.now(),
+      latitude: (data['latitude'] as num?)?.toDouble(),
+      longitude: (data['longitude'] as num?)?.toDouble(),
       checkInAt: toDateTime(data['checkInAt']),
       checkOutAt: toDateTime(data['checkOutAt']),
     );

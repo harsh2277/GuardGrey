@@ -46,12 +46,12 @@ class NotificationsScreen extends StatelessWidget {
           }
 
           if (snapshot.hasError) {
-            print('Notifications error: ${snapshot.error}');
+            debugPrint('Notifications error: ${snapshot.error}');
             return _buildErrorState();
           }
 
           if (notifications.isEmpty) {
-            return _buildEmptyState();
+            return _buildEmptyState(title);
           }
 
           return ListView.separated(
@@ -130,16 +130,23 @@ class NotificationsScreen extends StatelessWidget {
                                   color: AppColors.neutral600,
                                 ),
                               ),
-                              if (!item.isRead) ...[
-                                const SizedBox(height: 10),
-                                Text(
-                                  'Tap to mark as read',
-                                  style: AppTextStyles.bodySmall.copyWith(
-                                    color: AppColors.primary700,
-                                    fontWeight: FontWeight.w700,
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  ManagerNotificationTypeChip(
+                                    label: _notificationLabel(item),
+                                    isRead: item.isRead,
                                   ),
-                                ),
-                              ],
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: item.isRead
+                                        ? null
+                                        : () => NotificationModule.repository
+                                              .markAsRead(item.id),
+                                    child: const Text('Mark as read'),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -155,7 +162,7 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(String title) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -177,12 +184,12 @@ class NotificationsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No data available',
+              'No notifications yet',
               style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(
-              'Notifications will appear here once data is available.',
+              '$title will appear here when reminders, approvals, and alerts are created.',
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.neutral500,
@@ -199,6 +206,35 @@ class NotificationsScreen extends StatelessWidget {
       child: Text(
         'Unable to load notifications.',
         style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
+      ),
+    );
+  }
+}
+
+class ManagerNotificationTypeChip extends StatelessWidget {
+  const ManagerNotificationTypeChip({
+    super.key,
+    required this.label,
+    required this.isRead,
+  });
+
+  final String label;
+  final bool isRead;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isRead ? AppColors.neutral100 : AppColors.primary50,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isRead ? '$label | Read' : '$label | Unread',
+        style: AppTextStyles.bodySmall.copyWith(
+          color: isRead ? AppColors.neutral600 : AppColors.primary700,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -256,4 +292,26 @@ String _formatTimestamp(DateTime? timestamp) {
     return 'Yesterday';
   }
   return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+}
+
+String _notificationLabel(AppNotification item) {
+  final lowerTitle = item.title.toLowerCase();
+  final lowerMessage = item.message.toLowerCase();
+  if (lowerTitle.contains('leave') || lowerMessage.contains('leave')) {
+    return 'Leave approval';
+  }
+  if (lowerTitle.contains('missed') || lowerMessage.contains('missed')) {
+    return 'Missed visit alert';
+  }
+  if (lowerTitle.contains('reminder') || lowerMessage.contains('reminder')) {
+    return 'Visit reminder';
+  }
+  switch (item.type) {
+    case NotificationType.attendance:
+      return 'Leave approval';
+    case NotificationType.visit:
+      return 'Visit reminder';
+    case NotificationType.alert:
+      return 'Missed visit alert';
+  }
 }

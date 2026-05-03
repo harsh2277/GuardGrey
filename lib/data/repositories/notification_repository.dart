@@ -90,10 +90,13 @@ class NotificationRepository {
   }
 
   Future<void> disableAdminToken(String token, {String? platform}) {
+    final platformEntry = platform == null
+        ? null
+        : <String, dynamic>{'platform': platform};
     return _adminTokensCollection.doc(token).set({
       'token': token,
       'role': 'admin',
-      if (platform != null) 'platform': platform,
+      ...?platformEntry,
       'notificationsEnabled': false,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));

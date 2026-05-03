@@ -167,7 +167,7 @@ class _SiteSelectorBottomSheetState extends State<SiteSelectorBottomSheet> {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                           itemCount: filteredSites.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             final site = filteredSites[index];

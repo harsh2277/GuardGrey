@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
-import 'package:guardgrey/modules/admin/dashboard/widgets/kpi_card.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
-import 'package:guardgrey/data/models/site_model.dart';
-import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
+import 'package:guardgrey/features/location/services/current_location_service.dart';
 import 'package:guardgrey/modules/manager/attendance/models/manager_attendance_entry.dart';
 import 'package:guardgrey/modules/manager/attendance/repositories/manager_attendance_repository.dart';
 import 'package:guardgrey/modules/manager/common/services/manager_session_service.dart';
@@ -25,33 +23,88 @@ class ManagerAttendanceScreen extends StatefulWidget {
 class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
   final ManagerAttendanceRepository _repository =
       ManagerAttendanceRepository.instance;
-  String? _selectedSiteId;
+  final CurrentLocationService _locationService =
+      const CurrentLocationService();
+  bool _isCheckingIn = false;
+  bool _isCheckingOut = false;
 
-  Future<void> _checkIn(ManagerModel manager, List<SiteModel> sites) async {
-    final site =
-        sites.where((item) => item.id == _selectedSiteId).firstOrNull ??
-        sites.firstOrNull;
-    if (site == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.error,
-          content: Text(
-            'Assign a site before checking in.',
-            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-          ),
-        ),
-      );
+  Future<void> _checkIn(ManagerModel manager) async {
+    if (_isCheckingIn) {
       return;
     }
-    await _repository.checkIn(
-      managerId: manager.id,
-      managerName: manager.name,
-      site: site,
-    );
+    setState(() {
+      _isCheckingIn = true;
+    });
+    try {
+      double? latitude;
+      double? longitude;
+      try {
+        final position = await _locationService.getCurrentPosition();
+        latitude = position.latitude;
+        longitude = position.longitude;
+      } catch (_) {
+        latitude = null;
+        longitude = null;
+      }
+      await _repository.checkIn(
+        managerId: manager.id,
+        managerName: manager.name,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Check-in recorded.');
+    } on StateError catch (error) {
+      _showMessage(error.message, isError: true);
+    } catch (_) {
+      _showMessage('Unable to check in right now.', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingIn = false;
+        });
+      }
+    }
   }
 
   Future<void> _checkOut(ManagerAttendanceEntry entry) async {
-    await _repository.checkOut(entry);
+    if (_isCheckingOut) {
+      return;
+    }
+    setState(() {
+      _isCheckingOut = true;
+    });
+    try {
+      await _repository.checkOut(entry);
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Check-out recorded.');
+    } on StateError catch (error) {
+      _showMessage(error.message, isError: true);
+    } catch (_) {
+      _showMessage('Unable to check out right now.', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingOut = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        content: Text(
+          message,
+          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
+        ),
+      ),
+    );
   }
 
   @override
@@ -78,201 +131,277 @@ class _ManagerAttendanceScreenState extends State<ManagerAttendanceScreen> {
                   message:
                       'Attendance will appear after the manager workspace syncs.',
                 )
-              : StreamBuilder<List<SiteModel>>(
-                  stream: GuardGreyRepository.instance.watchSites(),
-                  builder: (context, siteSnapshot) {
-                    final sites = (siteSnapshot.data ?? const <SiteModel>[])
+              : StreamBuilder<List<ManagerAttendanceEntry>>(
+                  stream: _repository.watchAttendance(manager.id),
+                  builder: (context, attendanceSnapshot) {
+                    final entries =
+                        attendanceSnapshot.data ??
+                        const <ManagerAttendanceEntry>[];
+                    final today = DateTime.now();
+                    final current = entries
                         .where(
-                          (site) =>
-                              site.managerId == manager.id ||
-                              manager.siteIds.contains(site.id),
+                          (entry) =>
+                              entry.date.year == today.year &&
+                              entry.date.month == today.month &&
+                              entry.date.day == today.day,
                         )
-                        .toList(growable: false);
-                    _selectedSiteId ??= sites.firstOrNull?.id;
+                        .firstOrNull;
 
-                    return StreamBuilder<List<ManagerAttendanceEntry>>(
-                      stream: _repository.watchAttendance(manager.id),
-                      builder: (context, attendanceSnapshot) {
-                        final entries =
-                            attendanceSnapshot.data ??
-                            const <ManagerAttendanceEntry>[];
-                        final today = DateTime.now();
-                        final current = entries
-                            .where(
-                              (entry) =>
-                                  entry.date.year == today.year &&
-                                  entry.date.month == today.month &&
-                                  entry.date.day == today.day,
-                            )
-                            .firstOrNull;
-
-                        return ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                          children: [
-                            if (widget.showAppBar) ...[
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+                      children: [
+                        if (widget.showAppBar) ...[
+                          Text(
+                            'Keep daily attendance fast, simple, and mobile friendly.',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.neutral500,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.primary600,
+                                AppColors.primary700,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                'Check in once and keep daily logs in one place',
+                                'Today Status',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                current?.status ?? 'Not checked in',
+                                style: AppTextStyles.headingMedium.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _AttendanceStatTile(
+                                      label: 'Check-in',
+                                      value: current?.checkInAt == null
+                                          ? '--'
+                                          : formatTimeLabel(
+                                              current!.checkInAt!,
+                                            ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _AttendanceStatTile(
+                                      label: 'Check-out',
+                                      value: current?.checkOutAt == null
+                                          ? '--'
+                                          : formatTimeLabel(
+                                              current!.checkOutAt!,
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        ManagerSurfaceCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Attendance Actions',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'You can check in once per day and check out after your shift ends.',
                                 style: AppTextStyles.bodyMedium.copyWith(
                                   color: AppColors.neutral500,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                            ],
-                            ManagerSurfaceCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 16),
+                              Row(
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'Current Status',
-                                          style: AppTextStyles.bodyLarge
-                                              .copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed:
+                                          current?.checkInAt != null ||
+                                              _isCheckingIn
+                                          ? null
+                                          : () => _checkIn(manager),
+                                      child: Text(
+                                        _isCheckingIn
+                                            ? 'Checking in...'
+                                            : 'Check-in',
                                       ),
-                                      ManagerStatusChip(
-                                        label:
-                                            current?.status ?? 'Not checked in',
-                                      ),
-                                    ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  DropdownButtonFormField<String>(
-                                    initialValue: _selectedSiteId,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Assigned Site',
-                                    ),
-                                    items: sites
-                                        .map(
-                                          (site) => DropdownMenuItem<String>(
-                                            value: site.id,
-                                            child: Text(site.name),
-                                          ),
-                                        )
-                                        .toList(growable: false),
-                                    onChanged: current?.isCheckedIn == true
-                                        ? null
-                                        : (value) {
-                                            setState(() {
-                                              _selectedSiteId = value;
-                                            });
-                                          },
-                                  ),
-                                  const SizedBox(height: 12),
-                                  if (current?.checkInAt != null)
-                                    Text(
-                                      'Check-in: ${formatTimeLabel(current!.checkInAt!)}',
-                                      style: AppTextStyles.bodyMedium.copyWith(
-                                        color: AppColors.neutral500,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed:
+                                          current?.isCheckedIn == true &&
+                                              !_isCheckingOut
+                                          ? () => _checkOut(current!)
+                                          : null,
+                                      child: Text(
+                                        _isCheckingOut
+                                            ? 'Checking out...'
+                                            : 'Check-out',
                                       ),
                                     ),
-                                  if (current?.checkOutAt != null) ...[
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Check-out: ${formatTimeLabel(current!.checkOutAt!)}',
-                                      style: AppTextStyles.bodyMedium.copyWith(
-                                        color: AppColors.neutral500,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 18),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: FilledButton(
-                                          onPressed:
-                                              current?.isCheckedIn == true
-                                              ? null
-                                              : () => _checkIn(manager, sites),
-                                          child: const Text('Check-in'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed:
-                                              current?.isCheckedIn == true
-                                              ? () => _checkOut(current!)
-                                              : null,
-                                          child: const Text('Check-out'),
-                                        ),
-                                      ),
-                                    ],
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(height: 18),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: KPICard(
-                                    title: 'Today Status',
-                                    value: current == null ? '--' : '01',
-                                    icon: Icons.check_circle_outline_rounded,
-                                    iconColor:
-                                        current?.status == 'Present' ||
-                                            current?.status == 'Late'
-                                        ? AppColors.success
-                                        : AppColors.warningDark,
-                                    height: 96,
+                              const SizedBox(height: 14),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: AppColors.neutral50,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Text(
+                                  current?.latitude == null ||
+                                          current?.longitude == null
+                                      ? 'Optional GPS was not captured for today.'
+                                      : 'GPS: ${current!.latitude!.toStringAsFixed(5)}, ${current.longitude!.toStringAsFixed(5)}',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.neutral600,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: KPICard(
-                                    title: 'Attendance Logs',
-                                    value: entries.length.toString().padLeft(
-                                      2,
-                                      '0',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Attendance History',
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (entries.isEmpty)
+                          const ManagerEmptyState(
+                            title: 'No attendance history yet',
+                            message:
+                                'Your attendance logs will appear after the first check-in.',
+                          )
+                        else
+                          ...entries.map(
+                            (entry) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: ManagerSurfaceCard(
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary50,
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Icon(
+                                        Icons.fact_check_outlined,
+                                        color: AppColors.primary700,
+                                      ),
                                     ),
-                                    icon: Icons.history_rounded,
-                                    iconColor: AppColors.primary600,
-                                    height: 96,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              'History',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.neutral500,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            if (entries.isEmpty)
-                              const ManagerEmptyState(
-                                title: 'No attendance history yet',
-                                message:
-                                    'Your attendance logs will appear after the first check-in.',
-                              )
-                            else
-                              ...entries.map(
-                                (entry) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: ManagerListCard(
-                                    title: formatDateLabel(entry.date),
-                                    subtitle: entry.siteName,
-                                    meta:
-                                        'In: ${entry.checkInAt == null ? '-' : formatTimeLabel(entry.checkInAt!)}  •  Out: ${entry.checkOutAt == null ? '-' : formatTimeLabel(entry.checkOutAt!)}',
-                                    status: entry.status,
-                                    icon: Icons.fact_check_outlined,
-                                  ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            formatDateLabel(entry.date),
+                                            style: AppTextStyles.bodyLarge
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'In ${entry.checkInAt == null ? '--' : formatTimeLabel(entry.checkInAt!)} | Out ${entry.checkOutAt == null ? '--' : formatTimeLabel(entry.checkOutAt!)}',
+                                            style: AppTextStyles.bodySmall
+                                                .copyWith(
+                                                  color: AppColors.neutral500,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    ManagerStatusChip(label: entry.status),
+                                  ],
                                 ),
                               ),
-                          ],
-                        );
-                      },
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),
         );
       },
+    );
+  }
+}
+
+class _AttendanceStatTile extends StatelessWidget {
+  const _AttendanceStatTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: Colors.white70,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

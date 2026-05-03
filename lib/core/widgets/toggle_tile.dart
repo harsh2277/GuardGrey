@@ -28,7 +28,7 @@ class ToggleTile extends StatelessWidget {
       trailing: Switch.adaptive(
         value: value,
         onChanged: onChanged,
-        activeColor: AppColors.primary600,
+        activeTrackColor: AppColors.primary600,
       ),
     );
   }

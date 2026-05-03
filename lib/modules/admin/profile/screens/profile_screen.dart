@@ -76,24 +76,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         (_) => false,
       );
     } on FirebaseAuthException catch (error) {
-      print('Logout error: ${error.code} ${error.message}');
+      debugPrint('Logout error: ${error.code} ${error.message}');
       if (!mounted) {
         return;
       }
       _showPlaceholderMessage('Unable to logout right now.');
     } catch (error) {
-      print('Logout error: $error');
+      debugPrint('Logout error: $error');
       if (!mounted) {
         return;
       }
       _showPlaceholderMessage('Unable to logout right now.');
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(() {
+          _isLoggingOut = false;
+        });
       }
-      setState(() {
-        _isLoggingOut = false;
-      });
     }
   }
 
@@ -109,7 +108,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    if (result == null) return;
+    if (result == null || !mounted) {
+      return;
+    }
 
     setState(() {
       _fullName = result.fullName;

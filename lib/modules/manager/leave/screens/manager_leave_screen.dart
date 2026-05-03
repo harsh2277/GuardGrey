@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
-import 'package:guardgrey/core/widgets/primary_floating_add_button.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/modules/manager/common/services/manager_session_service.dart';
 import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
@@ -112,37 +111,17 @@ class _ManagerLeaveScreenState extends State<ManagerLeaveScreen> {
                           const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final leave = leaves[index];
-                        return Column(
-                          children: [
-                            ManagerListCard(
-                              title: leave.leaveType,
-                              subtitle:
-                                  '${formatDateLabel(leave.fromDate)} - ${formatDateLabel(leave.toDate)}',
-                              meta: leave.reason,
-                              status: leave.status,
-                              icon: Icons.event_busy_outlined,
-                              onTap: leave.canManage
-                                  ? () => _openForm(manager, existing: leave)
-                                  : null,
-                            ),
-                            if (leave.canManage) ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        _openForm(manager, existing: leave),
-                                    child: const Text('Edit'),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  TextButton(
-                                    onPressed: () => _deleteLeave(leave),
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
+                        return _LeaveCard(
+                          leave: leave,
+                          onTap: leave.canManage
+                              ? () => _openForm(manager, existing: leave)
+                              : null,
+                          onEdit: leave.canManage
+                              ? () => _openForm(manager, existing: leave)
+                              : null,
+                          onDelete: leave.canManage
+                              ? () => _deleteLeave(leave)
+                              : null,
                         );
                       },
                     );
@@ -150,13 +129,122 @@ class _ManagerLeaveScreenState extends State<ManagerLeaveScreen> {
                 ),
           floatingActionButton: manager == null
               ? null
-              : PrimaryFloatingAddButton(
-                  heroTag: 'manager-leave-add',
-                  tooltip: 'Apply Leave',
+              : FloatingActionButton(
                   onPressed: () => _openForm(manager),
+                  tooltip: 'Apply Leave',
+                  child: const Icon(Icons.add),
                 ),
         );
       },
+    );
+  }
+}
+
+class _LeaveCard extends StatelessWidget {
+  const _LeaveCard({
+    required this.leave,
+    this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  final ManagerLeaveRequest leave;
+  final VoidCallback? onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return ManagerSurfaceCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary50,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.event_busy_outlined,
+                  color: AppColors.primary600,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      leave.leaveType,
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        color: AppColors.neutral900,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${formatDateLabel(leave.fromDate)} - ${formatDateLabel(leave.toDate)}',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.neutral600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              ManagerStatusChip(label: leave.status),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.neutral50,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              leave.reason,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.neutral700,
+              ),
+            ),
+          ),
+          if (leave.canManage) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Edit'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.errorDark,
+                      side: const BorderSide(color: AppColors.errorLight),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

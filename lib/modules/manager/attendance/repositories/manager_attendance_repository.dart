@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/modules/manager/attendance/models/manager_attendance_entry.dart';
 
 class ManagerAttendanceRepository {
@@ -23,12 +22,12 @@ class ManagerAttendanceRepository {
     }
 
     return _attendance
-        .where('managerId', isEqualTo: managerId.trim())
         .orderBy('date', descending: true)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => ManagerAttendanceEntry.fromMap(doc.id, doc.data()))
+              .where((entry) => entry.managerId == managerId.trim())
               .toList(growable: false),
         );
   }
@@ -36,7 +35,8 @@ class ManagerAttendanceRepository {
   Future<void> checkIn({
     required String managerId,
     required String managerName,
-    required SiteModel site,
+    double? latitude,
+    double? longitude,
   }) async {
     final now = DateTime.now();
     final id =
@@ -44,14 +44,26 @@ class ManagerAttendanceRepository {
     final status = now.hour > 9 || (now.hour == 9 && now.minute > 15)
         ? 'Late'
         : 'Present';
+    final todayDoc = await _attendance.doc(id).get();
+    if (todayDoc.exists) {
+      final existing = ManagerAttendanceEntry.fromMap(
+        todayDoc.id,
+        todayDoc.data() ?? const <String, dynamic>{},
+      );
+      if (existing.checkInAt != null) {
+        throw StateError('Check-in already exists for today.');
+      }
+    }
 
     await _attendance.doc(id).set(<String, dynamic>{
       'managerId': managerId,
       'managerName': managerName,
-      'siteId': site.id,
-      'siteName': site.name,
+      'siteId': '',
+      'siteName': '',
       'status': status,
       'date': Timestamp.fromDate(DateTime(now.year, now.month, now.day)),
+      'latitude': latitude,
+      'longitude': longitude,
       'checkInAt': Timestamp.fromDate(now),
       'checkOutAt': null,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -59,6 +71,12 @@ class ManagerAttendanceRepository {
   }
 
   Future<void> checkOut(ManagerAttendanceEntry entry) async {
+    if (entry.checkInAt == null) {
+      throw StateError('Check-in is required before check-out.');
+    }
+    if (entry.checkOutAt != null) {
+      throw StateError('Check-out already recorded.');
+    }
     await _attendance.doc(entry.id).set(<String, dynamic>{
       'checkOutAt': Timestamp.fromDate(DateTime.now()),
       'status': entry.status == 'Late' ? 'Late' : 'Present',
