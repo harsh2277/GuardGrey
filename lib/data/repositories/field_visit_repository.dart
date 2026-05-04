@@ -65,6 +65,7 @@ class FieldVisitRepository {
       id: id,
       managerId: (data['managerId'] as String? ?? '').trim(),
       managerName: (data['managerName'] as String? ?? '').trim(),
+      clientEmail: (data['clientEmail'] as String? ?? '').trim(),
       phone: (data['phone'] as String? ?? '').trim(),
       profileImage: (data['profileImage'] as String? ?? '').trim(),
       visitType: (data['visitType'] as String? ?? 'Field Visit').trim(),

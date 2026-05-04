@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:guardgrey/data/repositories/notification_repository.dart';
+import 'package:guardgrey/features/auth/models/app_role.dart';
 import 'package:guardgrey/features/auth/screens/auth_gate_screen.dart';
 import 'package:guardgrey/features/auth/screens/login_screen.dart';
 import 'package:guardgrey/features/notifications/screens/notifications_screen.dart';
@@ -108,8 +110,13 @@ class AppRoutes {
         );
       case adminNotifications:
         return MaterialPageRoute<void>(
-          builder: (_) =>
-              RouteGuard.requireSignedIn(const NotificationsScreen()),
+          builder: (_) => RouteGuard.requireSignedIn(
+            NotificationsScreen(
+              recipientKey: NotificationRepository.roleRecipientKey(
+                AppRole.admin,
+              ),
+            ),
+          ),
           settings: routeSettings,
         );
       case managerMain:

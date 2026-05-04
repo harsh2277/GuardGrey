@@ -15,6 +15,7 @@ import 'package:guardgrey/data/repositories/field_visit_repository.dart';
 import 'package:guardgrey/data/repositories/live_tracking_repository.dart';
 import 'package:guardgrey/data/repositories/manager_repository.dart';
 import 'package:guardgrey/data/services/firebase_storage_service.dart';
+import 'package:guardgrey/features/notifications/services/notification_module.dart';
 import 'package:guardgrey/features/location/models/location_picker_result.dart';
 import 'package:guardgrey/features/location/screens/location_picker_screen.dart';
 import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
@@ -158,6 +159,7 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
     });
 
     try {
+      final siteName = _siteNameController.text.trim();
       final imageUrls = await _storage.uploadImages(
         folder: 'field_visits/${manager.id}',
         files: _pickedImages,
@@ -166,10 +168,11 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         managerId: manager.id,
         managerName: manager.name,
+        clientEmail: '',
         phone: manager.phone,
         profileImage: manager.profileImage,
         visitType: 'Field Visit',
-        siteName: _siteNameController.text.trim(),
+        siteName: siteName,
         notes: _notesController.text.trim(),
         status: 'Submitted',
         location: AppLocation(
@@ -181,6 +184,11 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
         dateTime: _selectedDateTime,
       );
       await _repository.saveFieldVisit(visit);
+      await NotificationModule.pushNotificationService
+          .notifyAdminsVisitSubmitted(
+            managerName: manager.name,
+            siteName: visit.siteName,
+          );
       await _repository.saveManagerLiveLocation(
         ManagerLiveLocationModel(
           managerId: manager.id,
@@ -204,8 +212,11 @@ class _FieldVisitFormScreenState extends State<FieldVisitFormScreen> {
       }
       _showMessage('Field visit saved successfully.');
       Navigator.pop(context);
-    } catch (_) {
-      _showMessage('Unable to save field visit right now.', isError: true);
+    } catch (error) {
+      _showMessage(
+        'Unable to save field visit right now. $error',
+        isError: true,
+      );
     } finally {
       if (mounted) {
         setState(() {

@@ -13,6 +13,8 @@ import 'package:guardgrey/data/models/report_model.dart';
 import 'package:guardgrey/data/models/report_question.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/report_repository.dart';
+import 'package:guardgrey/data/services/firebase_storage_service.dart';
+import 'package:guardgrey/features/notifications/services/notification_module.dart';
 import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
 import 'package:guardgrey/modules/manager/visits/models/manager_visit_entry.dart';
 import 'package:guardgrey/modules/manager/visits/repositories/manager_visit_repository.dart';
@@ -48,6 +50,7 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
   final ImagePicker _picker = ImagePicker();
   final ManagerVisitRepository _repository = ManagerVisitRepository.instance;
   final ReportRepository _reportRepository = ReportRepository.instance;
+  final FirebaseStorageService _storage = FirebaseStorageService.instance;
 
   late DateTime _scheduledAt;
   late String _selectedSiteId;
@@ -171,10 +174,10 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
     });
 
     try {
-      final linkedImages = _newPhotos
-          .map((file) => file.path)
-          .where((path) => path.trim().isNotEmpty)
-          .toList(growable: false);
+      final linkedImages = await _storage.uploadImages(
+        folder: 'site_visits/${widget.manager.id}',
+        files: _newPhotos,
+      );
       final visit = ManagerVisitEntry(
         id:
             widget.existing?.id ??
@@ -196,6 +199,13 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
       await _reportRepository.saveReport(
         _buildAdminReport(visit, selectedSite),
       );
+      if (widget.existing == null) {
+        await NotificationModule.pushNotificationService
+            .notifyAdminsVisitSubmitted(
+              managerName: widget.manager.name,
+              siteName: selectedSite.name,
+            );
+      }
       if (!mounted) {
         return;
       }

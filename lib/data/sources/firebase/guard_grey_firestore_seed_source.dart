@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+
+import 'package:guardgrey/firebase_options.dart';
 
 class FirestoreFieldDefinition {
   const FirestoreFieldDefinition({
@@ -36,6 +40,7 @@ class GuardGreyFirestoreSchema {
 
   static const String branches = 'branches';
   static const String clients = 'clients';
+  static const String admins = 'admins';
   static const String managers = 'managers';
   static const String sites = 'sites';
   static const String attendance = 'attendance';
@@ -46,6 +51,7 @@ class GuardGreyFirestoreSchema {
   static const String managerLiveLocation = 'manager_live_location';
   static const String notifications = 'notifications';
   static const String adminNotificationTokens = 'admin_notification_tokens';
+  static const String managerNotificationTokens = 'manager_notification_tokens';
 
   static const List<FirestoreCollectionDefinition> collections = [
     FirestoreCollectionDefinition(
@@ -168,6 +174,50 @@ class GuardGreyFirestoreSchema {
           'Client details and list cards depend on contact information, branch, and assigned site count.',
     ),
     FirestoreCollectionDefinition(
+      name: admins,
+      sourceScreens: ['AuthGateScreen', 'LoginScreen', 'Admin profile seed'],
+      fields: [
+        FirestoreFieldDefinition(
+          name: 'name',
+          type: 'string',
+          required: true,
+          source: 'Admin Name',
+        ),
+        FirestoreFieldDefinition(
+          name: 'email',
+          type: 'string',
+          required: true,
+          source: 'Email ID',
+        ),
+        FirestoreFieldDefinition(
+          name: 'phone',
+          type: 'string',
+          required: true,
+          source: 'Mobile Number',
+        ),
+        FirestoreFieldDefinition(
+          name: 'password',
+          type: 'string',
+          required: false,
+          source: 'Dummy seed credential reference only',
+        ),
+        FirestoreFieldDefinition(
+          name: 'createdAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+        FirestoreFieldDefinition(
+          name: 'updatedAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'Operational metadata',
+        ),
+      ],
+      notes:
+          'Firestore admin profile seed. Authentication still depends on Firebase Auth accounts.',
+    ),
+    FirestoreCollectionDefinition(
       name: managers,
       sourceScreens: [
         'ManagersListScreen',
@@ -192,6 +242,12 @@ class GuardGreyFirestoreSchema {
           type: 'string',
           required: true,
           source: 'Mobile Number',
+        ),
+        FirestoreFieldDefinition(
+          name: 'password',
+          type: 'string',
+          required: false,
+          source: 'Dummy seed credential reference only',
         ),
         FirestoreFieldDefinition(
           name: 'profileImage',
@@ -834,6 +890,50 @@ class GuardGreyFirestoreSchema {
       notes:
           'Operational collection for push delivery; intentionally not populated by seedDatabase().',
     ),
+    FirestoreCollectionDefinition(
+      name: managerNotificationTokens,
+      sourceScreens: ['PushNotificationService', 'NotificationRepository'],
+      fields: [
+        FirestoreFieldDefinition(
+          name: 'token',
+          type: 'string',
+          required: true,
+          source: 'FCM registration token',
+        ),
+        FirestoreFieldDefinition(
+          name: 'role',
+          type: 'string',
+          required: true,
+          source: 'NotificationRepository.upsertToken',
+        ),
+        FirestoreFieldDefinition(
+          name: 'userId',
+          type: 'string',
+          required: true,
+          source: 'Manager profile identifier',
+        ),
+        FirestoreFieldDefinition(
+          name: 'platform',
+          type: 'string',
+          required: true,
+          source: 'NotificationRepository.upsertToken',
+        ),
+        FirestoreFieldDefinition(
+          name: 'notificationsEnabled',
+          type: 'bool',
+          required: true,
+          source: 'Settings / push notification state',
+        ),
+        FirestoreFieldDefinition(
+          name: 'updatedAt',
+          type: 'Timestamp',
+          required: true,
+          source: 'NotificationRepository.upsertToken',
+        ),
+      ],
+      notes:
+          'Operational collection for manager push delivery; intentionally not populated by seedDatabase().',
+    ),
   ];
 }
 
@@ -848,6 +948,9 @@ class GuardGreyCollectionRefs {
 
   CollectionReference<Map<String, dynamic>> get clients =>
       _firestore.collection(GuardGreyFirestoreSchema.clients);
+
+  CollectionReference<Map<String, dynamic>> get admins =>
+      _firestore.collection(GuardGreyFirestoreSchema.admins);
 
   CollectionReference<Map<String, dynamic>> get managers =>
       _firestore.collection(GuardGreyFirestoreSchema.managers);
@@ -878,6 +981,9 @@ class GuardGreyCollectionRefs {
 
   CollectionReference<Map<String, dynamic>> get adminNotificationTokens =>
       _firestore.collection(GuardGreyFirestoreSchema.adminNotificationTokens);
+
+  CollectionReference<Map<String, dynamic>> get managerNotificationTokens =>
+      _firestore.collection(GuardGreyFirestoreSchema.managerNotificationTokens);
 }
 
 class GuardGreyFirestoreCrud {
@@ -891,6 +997,9 @@ class GuardGreyFirestoreCrud {
 
   Future<void> upsertClient(String id, Map<String, dynamic> data) =>
       _refs.clients.doc(id).set(data, SetOptions(merge: true));
+
+  Future<void> upsertAdmin(String id, Map<String, dynamic> data) =>
+      _refs.admins.doc(id).set(data, SetOptions(merge: true));
 
   Future<void> upsertManager(String id, Map<String, dynamic> data) =>
       _refs.managers.doc(id).set(data, SetOptions(merge: true));
@@ -990,6 +1099,17 @@ Future<void> seedDatabase({
     },
   };
 
+  final admins = <String, Map<String, dynamic>>{
+    'admin_harsh_vaghela': {
+      'name': 'Harsh',
+      'email': 'ct.harshvaghela@gmail.com',
+      'phone': '9054661314',
+      'password': 'Harsh@123',
+      'createdAt': _ts(2026, 5, 4, 10, 0),
+      'updatedAt': now,
+    },
+  };
+
   final managers = <String, Map<String, dynamic>>{
     'manager_ravi_patel': {
       'name': 'Ravi Patel',
@@ -1004,9 +1124,20 @@ Future<void> seedDatabase({
       'name': 'Manager Demo',
       'email': 'manager123@gmail.com',
       'phone': '+91 98765 22001',
+      'password': 'Manager@123',
       'profileImage': 'https://i.pravatar.cc/300?img=23',
       'siteIds': ['site_logistics_hub'],
       'createdAt': _ts(2026, 1, 10, 11, 15),
+      'updatedAt': now,
+    },
+    'manager_kaushal': {
+      'name': 'Kaushal',
+      'email': 'ctdev.kaushal@gmail.com',
+      'phone': '9724951729',
+      'password': 'Kaushal@123',
+      'profileImage': 'https://i.pravatar.cc/300?img=33',
+      'siteIds': [],
+      'createdAt': _ts(2026, 5, 4, 10, 5),
       'updatedAt': now,
     },
   };
@@ -1149,6 +1280,7 @@ Future<void> seedDatabase({
       'message':
           'Manager Demo has a pending night visit at Logistics Hub this afternoon.',
       'type': 'visit',
+      'recipientKeys': ['role:admin'],
       'sourceCollection': 'site_visits',
       'sourceId': 'visit_guardpulse_demo_2026_05_02_2',
       'createdAt': _ts(2026, 5, 2, 9, 0),
@@ -1160,6 +1292,7 @@ Future<void> seedDatabase({
       'message':
           'Manager Demo leave request for 03 May to 04 May is awaiting approval.',
       'type': 'attendance',
+      'recipientKeys': ['role:admin'],
       'sourceCollection': 'manager_leaves',
       'sourceId': 'leave_guardpulse_demo_pending',
       'createdAt': _ts(2026, 5, 2, 8, 30),
@@ -1351,6 +1484,11 @@ Future<void> seedDatabase({
     batch.set(refs.clients.doc(entry.key), entry.value);
   }
 
+  debugPrint('Creating admins...');
+  for (final entry in admins.entries) {
+    batch.set(refs.admins.doc(entry.key), entry.value);
+  }
+
   debugPrint('Creating managers...');
   for (final entry in managers.entries) {
     batch.set(refs.managers.doc(entry.key), entry.value);
@@ -1404,6 +1542,7 @@ Future<void> seedDatabase({
 
   try {
     await batch.commit();
+    await _ensureSeedAuthUsers(admins: admins, managers: managers);
     debugPrint('Seeding completed');
   } catch (error) {
     debugPrint('Seeding failed: $error');
@@ -1414,6 +1553,7 @@ Future<void> seedDatabase({
 Future<void> _clearSeedCollections(GuardGreyCollectionRefs refs) async {
   await Future.wait([
     _deleteAllDocs(refs.adminNotificationTokens),
+    _deleteAllDocs(refs.managerNotificationTokens),
     _deleteAllDocs(refs.notifications),
     _deleteAllDocs(refs.managerLeaves),
     _deleteAllDocs(refs.managerLiveLocation),
@@ -1423,6 +1563,7 @@ Future<void> _clearSeedCollections(GuardGreyCollectionRefs refs) async {
     _deleteAllDocs(refs.attendance),
     _deleteAllDocs(refs.sites),
     _deleteAllDocs(refs.managers),
+    _deleteAllDocs(refs.admins),
     _deleteAllDocs(refs.clients),
     _deleteAllDocs(refs.branches),
   ]);
@@ -1445,4 +1586,69 @@ Future<void> _deleteAllDocs(
 
 Timestamp _ts(int year, int month, int day, [int hour = 0, int minute = 0]) {
   return Timestamp.fromDate(DateTime(year, month, day, hour, minute));
+}
+
+Future<void> _ensureSeedAuthUsers({
+  required Map<String, Map<String, dynamic>> admins,
+  required Map<String, Map<String, dynamic>> managers,
+}) async {
+  final credentials = <_SeedAuthCredential>[
+    ...admins.entries
+        .map((entry) => _SeedAuthCredential.fromMap(entry.value))
+        .whereType<_SeedAuthCredential>(),
+    ...managers.entries
+        .map((entry) => _SeedAuthCredential.fromMap(entry.value))
+        .whereType<_SeedAuthCredential>(),
+  ];
+
+  if (credentials.isEmpty) {
+    return;
+  }
+
+  final secondaryApp = await Firebase.initializeApp(
+    name: 'guardgrey-seed-auth-${DateTime.now().millisecondsSinceEpoch}',
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  try {
+    final auth = FirebaseAuth.instanceFor(app: secondaryApp);
+    for (final credential in credentials) {
+      try {
+        await auth.createUserWithEmailAndPassword(
+          email: credential.email,
+          password: credential.password,
+        );
+        debugPrint('Created auth user for ${credential.email}');
+      } on FirebaseAuthException catch (error) {
+        if (error.code == 'email-already-in-use') {
+          debugPrint('Auth user already exists for ${credential.email}');
+        } else {
+          debugPrint(
+            'Unable to create auth user for ${credential.email}: ${error.code}',
+          );
+        }
+      }
+
+      await auth.signOut();
+    }
+  } finally {
+    await secondaryApp.delete();
+  }
+}
+
+class _SeedAuthCredential {
+  const _SeedAuthCredential({required this.email, required this.password});
+
+  final String email;
+  final String password;
+
+  static _SeedAuthCredential? fromMap(Map<String, dynamic> data) {
+    final email = (data['email'] as String?)?.trim() ?? '';
+    final password = (data['password'] as String?)?.trim() ?? '';
+    if (email.isEmpty || password.isEmpty) {
+      return null;
+    }
+
+    return _SeedAuthCredential(email: email, password: password);
+  }
 }

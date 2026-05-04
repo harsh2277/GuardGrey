@@ -25,6 +25,7 @@ class AppNotification {
     required this.type,
     required this.createdAt,
     required this.isRead,
+    this.recipientKeys = const <String>[],
   });
 
   final String id;
@@ -33,6 +34,7 @@ class AppNotification {
   final NotificationType type;
   final DateTime? createdAt;
   final bool isRead;
+  final List<String> recipientKeys;
 
   factory AppNotification.fromFirestore(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
@@ -49,6 +51,10 @@ class AppNotification {
       type: NotificationType.fromValue(data['type'] as String?),
       createdAt: createdAt is Timestamp ? createdAt.toDate() : null,
       isRead: data['isRead'] as bool? ?? false,
+      recipientKeys: ((data['recipientKeys'] as List<dynamic>?) ?? const [])
+          .map((item) => item.toString())
+          .where((item) => item.trim().isNotEmpty)
+          .toList(growable: false),
     );
   }
 }

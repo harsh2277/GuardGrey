@@ -8,6 +8,8 @@ import 'package:guardgrey/data/models/client_model.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
+import 'package:guardgrey/data/repositories/notification_repository.dart';
+import 'package:guardgrey/features/auth/models/app_role.dart';
 import 'package:guardgrey/features/notifications/services/notification_module.dart';
 import 'package:guardgrey/routes/app_routes.dart';
 import 'package:guardgrey/modules/admin/attendance/screens/attendance_screen.dart';
@@ -133,7 +135,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () =>
                 Navigator.pushNamed(context, AppRoutes.adminNotifications),
             child: StreamBuilder<int>(
-              stream: NotificationModule.repository.watchUnreadCount(),
+              stream: NotificationModule.repository.watchUnreadCount(
+                NotificationRepository.roleRecipientKey(AppRole.admin),
+              ),
               builder: (context, snapshot) {
                 final unreadCount = snapshot.data ?? 0;
                 return Container(

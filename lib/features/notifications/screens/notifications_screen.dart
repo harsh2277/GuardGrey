@@ -6,9 +6,14 @@ import 'package:guardgrey/data/models/app_notification.dart';
 import 'package:guardgrey/features/notifications/services/notification_module.dart';
 
 class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key, this.title = 'Notifications'});
+  const NotificationsScreen({
+    super.key,
+    required this.recipientKey,
+    this.title = 'Notifications',
+  });
 
   final String title;
+  final String recipientKey;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +29,8 @@ class NotificationsScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => NotificationModule.repository.markAllAsRead(),
+            onPressed: () =>
+                NotificationModule.repository.markAllAsRead(recipientKey),
             child: Text(
               'Mark all read',
               style: AppTextStyles.bodySmall.copyWith(
@@ -36,7 +42,7 @@ class NotificationsScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<List<AppNotification>>(
-        stream: NotificationModule.repository.watchNotifications(),
+        stream: NotificationModule.repository.watchNotifications(recipientKey),
         builder: (context, snapshot) {
           final notifications = snapshot.data ?? const <AppNotification>[];
 

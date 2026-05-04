@@ -1,5 +1,6 @@
 import 'package:guardgrey/data/models/app_notification.dart';
 import 'package:guardgrey/data/repositories/notification_repository.dart';
+import 'package:guardgrey/features/auth/models/app_role.dart';
 
 class NotificationTriggerService {
   NotificationTriggerService(this._repository);
@@ -17,6 +18,9 @@ class NotificationTriggerService {
       title: 'Manager Checked In',
       message: '$managerName checked in$siteLabel.',
       type: NotificationType.attendance,
+      recipientKeys: <String>[
+        NotificationRepository.roleRecipientKey(AppRole.admin),
+      ],
     );
   }
 
@@ -31,6 +35,9 @@ class NotificationTriggerService {
       title: 'Manager Checked Out',
       message: '$managerName checked out$siteLabel.',
       type: NotificationType.attendance,
+      recipientKeys: <String>[
+        NotificationRepository.roleRecipientKey(AppRole.admin),
+      ],
     );
   }
 
@@ -42,6 +49,9 @@ class NotificationTriggerService {
       title: 'Site Visit Submitted',
       message: '$managerName submitted a site visit for $siteName.',
       type: NotificationType.visit,
+      recipientKeys: <String>[
+        NotificationRepository.roleRecipientKey(AppRole.admin),
+      ],
     );
   }
 
@@ -53,6 +63,9 @@ class NotificationTriggerService {
       title: 'Attendance Updated',
       message: '$managerName attendance was updated to $status.',
       type: NotificationType.attendance,
+      recipientKeys: <String>[
+        NotificationRepository.roleRecipientKey(AppRole.admin),
+      ],
     );
   }
 }

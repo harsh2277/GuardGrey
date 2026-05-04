@@ -149,6 +149,11 @@ class GuardGreyRepository {
     return snapshot.docs.map(_clientFromDoc).toList(growable: false);
   }
 
+  Future<ClientModel?> fetchClient(String id) async {
+    final snapshot = await _clients.doc(id.trim()).get();
+    return _clientFromSnapshot(snapshot);
+  }
+
   Future<List<ManagerModel>> fetchManagers() async {
     final snapshot = await _managers.orderBy('name').get();
     return snapshot.docs.map(_managerFromDoc).toList(growable: false);
@@ -173,6 +178,30 @@ class GuardGreyRepository {
   Future<List<SiteModel>> fetchSites() async {
     final snapshot = await _sites.orderBy('name').get();
     return snapshot.docs.map(_siteFromDoc).toList(growable: false);
+  }
+
+  Future<SiteModel?> fetchSiteByName(String name) async {
+    final normalizedName = name.trim();
+    if (normalizedName.isEmpty) {
+      return null;
+    }
+
+    final exactSnapshot = await _sites
+        .where('name', isEqualTo: normalizedName)
+        .limit(1)
+        .get();
+    if (exactSnapshot.docs.isNotEmpty) {
+      return _siteFromDoc(exactSnapshot.docs.first);
+    }
+
+    final allSites = await fetchSites();
+    final normalizedLower = normalizedName.toLowerCase();
+    for (final site in allSites) {
+      if (site.name.trim().toLowerCase() == normalizedLower) {
+        return site;
+      }
+    }
+    return null;
   }
 
   Future<void> saveBranch(BranchModel branch) async {

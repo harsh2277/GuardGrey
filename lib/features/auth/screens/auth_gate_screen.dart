@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/features/auth/models/app_role.dart';
+import 'package:guardgrey/features/notifications/services/notification_module.dart';
 import 'package:guardgrey/features/permissions/services/permission_service.dart';
 import 'package:guardgrey/modules/manager/common/services/manager_live_location_sync_service.dart';
 import 'package:guardgrey/modules/manager/common/services/manager_session_service.dart';
@@ -144,6 +145,8 @@ class _AppBootstrapState extends State<_AppBootstrap>
         return;
       }
       await PermissionService.instance.handleAppPermissions(context);
+      await NotificationModule.pushNotificationService
+          .syncPushNotificationState();
       await _syncManagerLocationIfNeeded();
     });
   }
@@ -157,6 +160,8 @@ class _AppBootstrapState extends State<_AppBootstrap>
       if (!mounted) {
         return;
       }
+      await NotificationModule.pushNotificationService
+          .syncPushNotificationState();
       await _syncManagerLocationIfNeeded();
     });
   }

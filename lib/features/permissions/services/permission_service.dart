@@ -1,4 +1,3 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -74,16 +73,8 @@ class PermissionService {
   }
 
   Future<void> _requestNotificationPermission() async {
-    final settings = await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    final isAuthorized =
-        settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
-
+    final isAuthorized = await NotificationModule.pushNotificationService
+        .setPushNotificationsEnabled(true);
     await NotificationModule.preferencesService.setPushEnabled(isAuthorized);
     if (isAuthorized) {
       await NotificationModule.pushNotificationService

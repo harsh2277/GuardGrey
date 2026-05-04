@@ -1,44 +1,33 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:convert';
 
-import '../../../firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:onesignal_flutter/onesignal_flutter.dart';
+
+import 'package:guardgrey/data/models/app_notification.dart';
 import 'package:guardgrey/data/repositories/notification_repository.dart';
+import 'package:guardgrey/features/auth/models/app_role.dart';
 import 'notification_preferences_service.dart';
 
-const AndroidNotificationChannel _adminNotificationsChannel =
-    AndroidNotificationChannel(
-      'guardgrey_admin_notifications',
-      'Admin Notifications',
-      description: 'Real-time admin notifications for GuardGrey',
-      importance: Importance.high,
-    );
-
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-}
-
 class PushNotificationService {
+  static const String _oneSignalAppId = '3515bf0b-a8af-483a-927a-4e2fd59d6cbd';
+  static const String _restApiKey = String.fromEnvironment(
+    'ONESIGNAL_REST_API_KEY',
+    defaultValue:
+        'os_v2_app_guk36c5iv5edvet2jyx5lhlmxved4slluoyunumgodzpaipnxvj6g7y7hwaardl5fapaejv5syvzqkrhkjsovfz72biw4v4vwyergni',
+  );
+  static const String _notificationsEndpoint =
+      'https://onesignal.com/api/v1/notifications';
+
   PushNotificationService({
     required NotificationRepository repository,
     required NotificationPreferencesService preferencesService,
-    FirebaseMessaging? messaging,
-    FlutterLocalNotificationsPlugin? localNotificationsPlugin,
   }) : _repository = repository,
-       _preferencesService = preferencesService,
-       _messagingOverride = messaging,
-       _localNotificationsPlugin =
-           localNotificationsPlugin ?? FlutterLocalNotificationsPlugin();
+       _preferencesService = preferencesService;
 
   final NotificationRepository _repository;
   final NotificationPreferencesService _preferencesService;
-  final FirebaseMessaging? _messagingOverride;
-  final FlutterLocalNotificationsPlugin _localNotificationsPlugin;
-
-  FirebaseMessaging get _messaging =>
-      _messagingOverride ?? FirebaseMessaging.instance;
 
   bool get _isSupportedMobilePlatform =>
       !kIsWeb &&
@@ -50,12 +39,9 @@ class PushNotificationService {
       return;
     }
 
-    await _initializeLocalNotifications();
-    await _configureForegroundHandling();
-
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-    _messaging.onTokenRefresh.listen(_handleTokenRefresh);
-
+    OneSignal.initialize(_oneSignalAppId);
+    final granted = await OneSignal.Notifications.requestPermission(true);
+    await _preferencesService.setPushEnabled(granted);
     await syncPushNotificationState();
   }
 
@@ -67,44 +53,24 @@ class PushNotificationService {
 
     await _preferencesService.setPushEnabled(isEnabled);
     if (!isEnabled) {
-      final existingToken = await _messaging.getToken();
-      if (existingToken != null) {
-        await _repository.disableAdminToken(
-          existingToken,
-          platform: platformLabel,
+      final audience = await _repository.resolveAudience();
+      if (audience != null) {
+        await _repository.disableToken(
+          role: audience.role,
+          userId: audience.userId,
+          recipientKeys: audience.recipientKeys,
         );
       }
-      await _messaging.deleteToken();
       return false;
     }
 
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
-
-    final isAuthorized =
-        settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
-
+    final isAuthorized = await OneSignal.Notifications.requestPermission(true);
     if (!isAuthorized) {
       await _preferencesService.setPushEnabled(false);
       return false;
     }
 
-    final token = await _messaging.getToken();
-    if (token == null) {
-      await _preferencesService.setPushEnabled(false);
-      return false;
-    }
-
-    await _repository.upsertAdminToken(
-      token: token,
-      notificationsEnabled: true,
-      platform: platformLabel,
-    );
+    await syncPushNotificationState();
     return true;
   }
 
@@ -114,149 +80,141 @@ class PushNotificationService {
       return;
     }
 
-    if (!_preferencesService.isPushEnabled) {
-      final token = await _messaging.getToken();
-      if (token != null) {
-        await _repository.disableAdminToken(token, platform: platformLabel);
-      }
+    final audience = await _repository.resolveAudience();
+    if (audience == null || FirebaseAuth.instance.currentUser == null) {
       return;
     }
 
-    final settings = await _messaging.getNotificationSettings();
-    final isAuthorized =
-        settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional;
-
-    if (!isAuthorized) {
+    if (!_preferencesService.isPushEnabled ||
+        !OneSignal.Notifications.permission) {
+      await _repository.disableToken(
+        role: audience.role,
+        userId: audience.userId,
+        recipientKeys: audience.recipientKeys,
+      );
       return;
     }
 
-    final token = await _messaging.getToken();
-    if (token == null) {
+    final playerId = OneSignal.User.pushSubscription.id;
+    debugPrint('OneSignal player ID: $playerId');
+    if (playerId == null || playerId.trim().isEmpty) {
       return;
     }
 
-    await _repository.upsertAdminToken(
-      token: token,
+    await _repository.upsertToken(
+      playerId: playerId,
       notificationsEnabled: true,
-      platform: platformLabel,
-    );
-  }
-
-  Future<void> _initializeLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const iosSettings = DarwinInitializationSettings();
-    const initializationSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-
-    await _localNotificationsPlugin.initialize(initializationSettings);
-
-    await _localNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.createNotificationChannel(_adminNotificationsChannel);
-  }
-
-  Future<void> _configureForegroundHandling() {
-    return _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-  }
-
-  Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    if (!_isSupportedMobilePlatform) {
-      return;
-    }
-
-    if (!_preferencesService.isInAppEnabled) {
-      return;
-    }
-
-    final title =
-        message.notification?.title ?? (message.data['title'] as String?);
-    final body =
-        message.notification?.body ?? (message.data['message'] as String?);
-
-    if (title == null || body == null) {
-      return;
-    }
-
-    await _localNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _adminNotificationsChannel.id,
-          _adminNotificationsChannel.name,
-          channelDescription: _adminNotificationsChannel.description,
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
+      role: audience.role,
+      userId: audience.userId,
+      recipientKeys: audience.recipientKeys,
     );
   }
 
   Future<bool> showTestNotification() async {
-    if (!_isSupportedMobilePlatform) {
+    final audience = await _repository.resolveAudience();
+    if (!_isSupportedMobilePlatform || audience == null) {
       return false;
     }
 
-    if (!_preferencesService.isInAppEnabled) {
+    final playerId = await _repository.fetchPlayerId(audience.userId);
+    if (playerId == null) {
       return false;
     }
 
-    await _localNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      'Test Notification',
-      'This is a test message',
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _adminNotificationsChannel.id,
-          _adminNotificationsChannel.name,
-          channelDescription: _adminNotificationsChannel.description,
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: const DarwinNotificationDetails(),
-      ),
+    return _sendNotificationRequest(
+      playerIds: <String>[playerId],
+      title: 'Test Notification',
+      message: 'This is a test message',
     );
-
-    return true;
   }
 
-  Future<void> _handleTokenRefresh(String token) async {
-    if (!_preferencesService.isPushEnabled) {
-      await _repository.disableAdminToken(token, platform: platformLabel);
+  Future<void> notifyManagerSiteAssigned({
+    required String managerId,
+    required String siteName,
+  }) async {
+    final playerId = await _repository.fetchPlayerId(managerId);
+    debugPrint('Manager player ID for assignment: $playerId');
+    if (playerId == null) {
       return;
     }
 
-    await _repository.upsertAdminToken(
-      token: token,
-      notificationsEnabled: true,
-      platform: platformLabel,
+    await _repository.createNotification(
+      title: 'New Site Assigned',
+      message: 'You have been assigned a new site: $siteName.',
+      type: NotificationType.alert,
+      recipientKeys: <String>[
+        NotificationRepository.userRecipientKey(managerId),
+      ],
+    );
+
+    await _sendNotificationRequest(
+      playerIds: <String>[playerId],
+      title: 'New Site Assigned',
+      message: 'You have been assigned a new site',
     );
   }
 
-  String get platformLabel {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'android';
-      case TargetPlatform.iOS:
-        return 'ios';
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return 'unsupported';
+  Future<void> notifyAdminsVisitSubmitted({
+    required String managerName,
+    required String siteName,
+  }) async {
+    final playerIds = await _repository.fetchPlayerIdsByRole(AppRole.admin);
+    debugPrint('Admin player IDs for visit submit: $playerIds');
+    if (playerIds.isEmpty) {
+      return;
+    }
+
+    await _repository.createNotification(
+      title: 'Visit Submitted',
+      message: '$managerName has submitted a site visit for $siteName.',
+      type: NotificationType.visit,
+      recipientKeys: <String>[
+        NotificationRepository.roleRecipientKey(AppRole.admin),
+      ],
+    );
+
+    await _sendNotificationRequest(
+      playerIds: playerIds,
+      title: 'Visit Submitted',
+      message: 'Manager has submitted a site visit',
+    );
+  }
+
+  Future<bool> _sendNotificationRequest({
+    required List<String> playerIds,
+    required String title,
+    required String message,
+  }) async {
+    if (playerIds.isEmpty) {
+      return false;
+    }
+
+    if (_restApiKey == 'YOUR_REST_API_KEY') {
+      debugPrint('OneSignal REST API key is not configured.');
+      return false;
+    }
+
+    final payload = <String, dynamic>{
+      'app_id': _oneSignalAppId,
+      'include_player_ids': playerIds,
+      'headings': <String, String>{'en': title},
+      'contents': <String, String>{'en': message},
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(_notificationsEndpoint),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic $_restApiKey',
+        },
+        body: jsonEncode(payload),
+      );
+      debugPrint('OneSignal response: ${response.statusCode} ${response.body}');
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (error) {
+      debugPrint('OneSignal notification failed: $error');
+      return false;
     }
   }
 }

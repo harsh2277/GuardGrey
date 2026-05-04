@@ -8,6 +8,7 @@ import 'package:guardgrey/data/models/client_model.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
+import 'package:guardgrey/features/notifications/services/notification_module.dart';
 import 'package:guardgrey/features/location/models/location_picker_result.dart';
 import 'package:guardgrey/features/location/screens/location_picker_screen.dart';
 import 'package:guardgrey/features/location/widgets/location_input_field.dart';
@@ -121,6 +122,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
     final location = _locationController.text.trim();
     final address = _addressController.text.trim();
+    final previousManagerId = widget.site?.managerId;
     final site = SiteModel(
       id: widget.site?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text.trim(),
@@ -140,6 +142,13 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
     try {
       await _repository.saveSite(site);
+      if (previousManagerId != managerId) {
+        await NotificationModule.pushNotificationService
+            .notifyManagerSiteAssigned(
+              managerId: managerId,
+              siteName: site.name,
+            );
+      }
       if (!mounted) {
         return;
       }

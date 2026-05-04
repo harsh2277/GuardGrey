@@ -7,6 +7,7 @@ class FieldVisitModel {
     required this.id,
     required this.managerId,
     required this.managerName,
+    required this.clientEmail,
     required this.phone,
     required this.profileImage,
     required this.visitType,
@@ -22,6 +23,7 @@ class FieldVisitModel {
   final String id;
   final String managerId;
   final String managerName;
+  final String clientEmail;
   final String phone;
   final String profileImage;
   final String visitType;
@@ -38,11 +40,13 @@ class FieldVisitModel {
       'id': id,
       'managerId': managerId,
       'managerName': managerName,
+      'clientEmail': clientEmail,
       'phone': phone,
       'profileImage': profileImage,
       'visitType': visitType,
       'siteName': siteName,
       'notes': notes,
+      'description': notes,
       'status': status,
       'location': location.toMap(),
       'imageUrls': imageUrls,
