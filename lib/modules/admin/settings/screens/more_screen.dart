@@ -14,6 +14,11 @@ class MoreScreen extends StatelessWidget {
         title: 'Management',
         items: [
           _MoreItem(
+            icon: Icons.business_rounded,
+            title: 'Clients',
+            routeName: AppRoutes.adminClients,
+          ),
+          _MoreItem(
             icon: Icons.groups_rounded,
             title: 'Managers',
             routeName: AppRoutes.adminManagers,
@@ -33,11 +38,6 @@ class MoreScreen extends StatelessWidget {
       _MoreSection(
         title: 'Analytics',
         items: [
-          _MoreItem(
-            icon: Icons.assessment_rounded,
-            title: 'Reports',
-            routeName: AppRoutes.adminReports,
-          ),
           _MoreItem(
             icon: Icons.location_on_outlined,
             title: 'Field Visit',

@@ -4,8 +4,8 @@ import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/utils/filter_resettable.dart';
 import 'package:guardgrey/core/widgets/bottom_nav_bar.dart';
 import 'package:guardgrey/modules/admin/attendance/screens/attendance_screen.dart';
-import 'package:guardgrey/modules/admin/clients/screens/clients_screen.dart';
 import 'package:guardgrey/modules/admin/dashboard/screens/dashboard_screen.dart';
+import 'package:guardgrey/modules/admin/reports/screens/reports_screen.dart';
 import 'package:guardgrey/modules/admin/settings/screens/more_screen.dart';
 import 'package:guardgrey/modules/admin/sites/screens/sites_screen.dart';
 
@@ -35,7 +35,7 @@ class _AdminNavigationScreenState extends State<AdminNavigationScreen> {
     DashboardScreen(key: _screenKeys[0]),
     SitesScreen(key: _screenKeys[1]),
     AttendanceScreen(key: _screenKeys[2]),
-    ClientsScreen(key: _screenKeys[3]),
+    ReportsScreen(key: _screenKeys[3]),
     MoreScreen(key: _screenKeys[4]),
   ];
 

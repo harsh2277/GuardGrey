@@ -829,7 +829,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _openClients(BuildContext context) {
-    _openTabOrPush(context, 3, const ClientsScreen());
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const ClientsScreen()),
+    );
   }
 
   void _openSites(BuildContext context) {

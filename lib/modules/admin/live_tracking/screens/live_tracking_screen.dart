@@ -79,6 +79,15 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: AppColors.backgroundLight,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          'Live Tracking',
+          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
       body: SafeArea(
         child: StreamBuilder<List<ManagerLiveLocationModel>>(
           stream: LiveTrackingRepository.instance.watchManagerLocations(),
@@ -181,7 +190,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     Positioned(
                       left: 20,
                       right: 20,
-                      top: 12,
+                      top: 16,
                       child: _TopControls(
                         controller: _searchController,
                         onChanged: (value) {

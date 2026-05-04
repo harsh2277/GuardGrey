@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -6,9 +7,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
+import 'package:guardgrey/data/models/app_location.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
+import 'package:guardgrey/data/models/report_model.dart';
+import 'package:guardgrey/data/models/report_question.dart';
 import 'package:guardgrey/data/models/site_model.dart';
-import 'package:guardgrey/data/services/firebase_storage_service.dart';
+import 'package:guardgrey/data/repositories/report_repository.dart';
 import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
 import 'package:guardgrey/modules/manager/visits/models/manager_visit_entry.dart';
 import 'package:guardgrey/modules/manager/visits/repositories/manager_visit_repository.dart';
@@ -32,6 +36,7 @@ class ManagerVisitFormScreen extends StatefulWidget {
 }
 
 class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
+  static const int _maxImages = 5;
   static const List<String> _visitTypes = <String>[
     'Site Visit',
     'Night Visit',
@@ -41,8 +46,8 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _notesController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-  final FirebaseStorageService _storage = FirebaseStorageService.instance;
   final ManagerVisitRepository _repository = ManagerVisitRepository.instance;
+  final ReportRepository _reportRepository = ReportRepository.instance;
 
   late DateTime _scheduledAt;
   late String _selectedSiteId;
@@ -124,10 +129,9 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
 
   Future<void> _pickPhotos() async {
     final remainingSlots =
-        FirebaseStorageService.maxImages -
-        (_existingPhotos.length + _newPhotos.length);
+        _maxImages - (_existingPhotos.length + _newPhotos.length);
     if (remainingSlots <= 0) {
-      _showError('You can upload a maximum of 5 photos.');
+      _showError('You can add a maximum of 5 photos.');
       return;
     }
     final files = await _picker.pickMultiImage();
@@ -151,11 +155,6 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
       _showError('Site is required.');
       return;
     }
-    final totalPhotos = _existingPhotos.length + _newPhotos.length;
-    if (totalPhotos < 3) {
-      _showError('Please upload at least 3 photos before submitting.');
-      return;
-    }
 
     final normalizedQuestions = _questions
         .map(
@@ -172,10 +171,10 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
     });
 
     try {
-      final uploaded = await _storage.uploadImages(
-        folder: 'site_visits/${widget.manager.id}',
-        files: _newPhotos,
-      );
+      final linkedImages = _newPhotos
+          .map((file) => file.path)
+          .where((path) => path.trim().isNotEmpty)
+          .toList(growable: false);
       final visit = ManagerVisitEntry(
         id:
             widget.existing?.id ??
@@ -188,18 +187,21 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
         scheduledAt: _scheduledAt,
         status: _scheduledAt.isBefore(DateTime.now()) ? 'Completed' : 'Pending',
         notes: _notesController.text.trim(),
-        imageUrls: <String>[..._existingPhotos, ...uploaded],
+        imageUrls: <String>[..._existingPhotos, ...linkedImages],
         questions: normalizedQuestions,
         createdAt: widget.existing?.createdAt,
         updatedAt: DateTime.now(),
       );
       await _repository.saveVisit(visit);
+      await _reportRepository.saveReport(
+        _buildAdminReport(visit, selectedSite),
+      );
       if (!mounted) {
         return;
       }
       Navigator.pop(context, true);
-    } catch (_) {
-      _showError('Unable to save visit right now.');
+    } catch (error) {
+      _showError('Unable to save visit right now. $error');
     } finally {
       if (mounted) {
         setState(() {
@@ -218,6 +220,48 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
           style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
         ),
       ),
+    );
+  }
+
+  ReportModel _buildAdminReport(ManagerVisitEntry visit, SiteModel site) {
+    final locationLabel = site.address.isNotEmpty
+        ? site.address
+        : site.location;
+    final summaryQuestions = <ReportQuestion>[
+      ReportQuestion(question: 'Site Name', description: site.name),
+      ReportQuestion(question: 'Visit Type', description: visit.visitType),
+      ReportQuestion(question: 'Status', description: visit.status),
+      ReportQuestion(
+        question: 'Notes',
+        description: visit.notes.isEmpty ? 'No notes added.' : visit.notes,
+      ),
+    ];
+
+    final checklistQuestions = visit.questions
+        .map(
+          (item) => ReportQuestion(
+            question: item.question,
+            description:
+                'Answer: ${item.answerLabel}${item.note.trim().isEmpty ? '' : '\nNote: ${item.note.trim()}'}',
+          ),
+        )
+        .toList(growable: false);
+
+    return ReportModel(
+      id: 'manager_visit_report_${visit.id}',
+      reportName: '${visit.visitType} - ${site.name}',
+      reportType: 'site_visit',
+      managerId: visit.managerId,
+      managerName: visit.managerName,
+      dateTime: visit.scheduledAt,
+      location: AppLocation(
+        lat: site.latitude ?? 0,
+        lng: site.longitude ?? 0,
+        address: locationLabel,
+      ),
+      questions: <ReportQuestion>[...summaryQuestions, ...checklistQuestions],
+      imageUrls: visit.imageUrls,
+      isReadOnly: true,
     );
   }
 
@@ -391,7 +435,7 @@ class _ManagerVisitFormScreenState extends State<ManagerVisitFormScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Minimum 3 photos required. Maximum 5 photos allowed.',
+              'Photos are optional. You can upload up to 5 photos.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.neutral500,
               ),
@@ -529,6 +573,11 @@ class _PhotoTile extends StatelessWidget {
   final Future<Uint8List> Function()? memoryLoader;
   final VoidCallback onRemove;
 
+  bool get _isNetworkImage {
+    final value = imageUrl?.trim() ?? '';
+    return value.startsWith('http://') || value.startsWith('https://');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -542,7 +591,9 @@ class _PhotoTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: imageUrl != null
-                  ? Image.network(imageUrl!, fit: BoxFit.cover)
+                  ? (_isNetworkImage
+                        ? Image.network(imageUrl!, fit: BoxFit.cover)
+                        : Image.file(File(imageUrl!), fit: BoxFit.cover))
                   : FutureBuilder<Uint8List>(
                       future: memoryLoader?.call(),
                       builder: (context, snapshot) {

@@ -56,6 +56,7 @@ class ManagerVisitEntry {
     required this.status,
     required this.notes,
     required this.imageUrls,
+    this.imageStoragePaths = const <String>[],
     required this.questions,
     this.createdAt,
     this.updatedAt,
@@ -72,6 +73,7 @@ class ManagerVisitEntry {
   final String status;
   final String notes;
   final List<String> imageUrls;
+  final List<String> imageStoragePaths;
   final List<ManagerVisitQuestion> questions;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -97,6 +99,7 @@ class ManagerVisitEntry {
     String? status,
     String? notes,
     List<String>? imageUrls,
+    List<String>? imageStoragePaths,
     List<ManagerVisitQuestion>? questions,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -113,6 +116,7 @@ class ManagerVisitEntry {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       imageUrls: imageUrls ?? this.imageUrls,
+      imageStoragePaths: imageStoragePaths ?? this.imageStoragePaths,
       questions: questions ?? this.questions,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -151,6 +155,7 @@ class ManagerVisitEntry {
       'status': status,
       'notes': notes,
       'imageUrls': imageUrls,
+      'imageStoragePaths': imageStoragePaths,
       'questions': questions.map((question) => question.toMap()).toList(),
       'updatedAt': FieldValue.serverTimestamp(),
       if (createdAt == null) 'createdAt': FieldValue.serverTimestamp(),
@@ -210,6 +215,7 @@ class ManagerVisitEntry {
       status: (data['status'] as String? ?? 'Pending').trim(),
       notes: (data['notes'] as String? ?? '').trim(),
       imageUrls: toStringList(data['imageUrls']),
+      imageStoragePaths: toStringList(data['imageStoragePaths']),
       questions: toQuestionList(data['questions'], legacyChecklist),
       createdAt: toDateTime(data['createdAt']),
       updatedAt: toDateTime(data['updatedAt']),

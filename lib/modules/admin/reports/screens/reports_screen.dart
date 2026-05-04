@@ -5,14 +5,12 @@ import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/core/widgets/admin_search_bar.dart';
 import 'package:guardgrey/core/widgets/list_filter_bottom_sheet.dart';
-import 'package:guardgrey/core/widgets/primary_floating_add_button.dart';
 import 'package:guardgrey/core/widgets/surface_icon_button.dart';
 import 'package:guardgrey/data/models/report_model.dart';
 import 'package:guardgrey/data/repositories/report_repository.dart';
 import 'package:guardgrey/data/repositories/guard_grey_repository.dart';
 
 import 'report_detail_screen.dart';
-import 'report_form_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -92,14 +90,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
         title: Text(
           'Reports',
           style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ),
-      floatingActionButton: PrimaryFloatingAddButton(
-        heroTag: 'reports-add-fab',
-        tooltip: 'Add Report',
-        onPressed: () => Navigator.push<void>(
-          context,
-          MaterialPageRoute(builder: (_) => const ReportFormScreen()),
         ),
       ),
       body: StreamBuilder<List<ReportModel>>(
@@ -235,34 +225,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                           ],
                                         ),
                                       ),
-                                      PopupMenuButton<String>(
-                                        onSelected: (value) {
-                                          if (value == 'edit') {
-                                            Navigator.push<void>(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    ReportFormScreen(
-                                                      report: report,
-                                                    ),
-                                              ),
-                                            );
-                                            return;
-                                          }
-                                          if (value == 'delete') {
-                                            _deleteReport(context, report);
-                                          }
-                                        },
-                                        itemBuilder: (context) => const [
-                                          PopupMenuItem<String>(
-                                            value: 'edit',
-                                            child: Text('Edit'),
-                                          ),
-                                          PopupMenuItem<String>(
-                                            value: 'delete',
-                                            child: Text('Delete'),
-                                          ),
-                                        ],
+                                      const Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        size: 16,
+                                        color: AppColors.neutral400,
                                       ),
                                     ],
                                   ),
@@ -276,57 +242,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Future<void> _deleteReport(BuildContext context, ReportModel report) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Delete Report?',
-          style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
-        ),
-        content: Text(
-          'This will remove ${report.reportName} permanently.',
-          style: AppTextStyles.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Delete',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.error,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) {
-      return;
-    }
-
-    await ReportRepository.instance.deleteReport(report.id);
-    if (!context.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppColors.success,
-        content: Text(
-          'Report deleted successfully.',
-          style: AppTextStyles.bodyMedium.copyWith(color: Colors.white),
-        ),
       ),
     );
   }

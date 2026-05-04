@@ -5,6 +5,8 @@ import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/features/auth/models/app_role.dart';
 import 'package:guardgrey/features/permissions/services/permission_service.dart';
+import 'package:guardgrey/modules/manager/common/services/manager_live_location_sync_service.dart';
+import 'package:guardgrey/modules/manager/common/services/manager_session_service.dart';
 import 'package:guardgrey/routes/route_guard.dart';
 import 'login_screen.dart';
 
@@ -89,7 +91,10 @@ class AuthGateScreen extends StatelessWidget {
                 );
               }
 
-              return _PermissionBootstrap(child: RouteGuard.homeForRole(role));
+              return _AppBootstrap(
+                role: role,
+                child: RouteGuard.homeForRole(role),
+              );
             },
           );
         }
@@ -100,17 +105,32 @@ class AuthGateScreen extends StatelessWidget {
   }
 }
 
-class _PermissionBootstrap extends StatefulWidget {
-  const _PermissionBootstrap({required this.child});
+class _AppBootstrap extends StatefulWidget {
+  const _AppBootstrap({required this.role, required this.child});
 
+  final AppRole role;
   final Widget child;
 
   @override
-  State<_PermissionBootstrap> createState() => _PermissionBootstrapState();
+  State<_AppBootstrap> createState() => _AppBootstrapState();
 }
 
-class _PermissionBootstrapState extends State<_PermissionBootstrap> {
+class _AppBootstrapState extends State<_AppBootstrap>
+    with WidgetsBindingObserver {
   bool _handledPermissions = false;
+  bool _isSyncingManagerLocation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -124,7 +144,43 @@ class _PermissionBootstrapState extends State<_PermissionBootstrap> {
         return;
       }
       await PermissionService.instance.handleAppPermissions(context);
+      await _syncManagerLocationIfNeeded();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      await _syncManagerLocationIfNeeded();
+    });
+  }
+
+  Future<void> _syncManagerLocationIfNeeded() async {
+    if (widget.role != AppRole.manager || _isSyncingManagerLocation) {
+      return;
+    }
+
+    _isSyncingManagerLocation = true;
+    try {
+      final manager = await ManagerSessionService.instance
+          .fetchCurrentManager();
+      if (manager == null) {
+        return;
+      }
+      await ManagerLiveLocationSyncService.instance.syncCurrentManagerLocation(
+        manager,
+      );
+    } catch (error) {
+      debugPrint('Manager live location sync skipped: $error');
+    } finally {
+      _isSyncingManagerLocation = false;
+    }
   }
 
   @override

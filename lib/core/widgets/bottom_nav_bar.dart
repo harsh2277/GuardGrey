@@ -77,9 +77,9 @@ class BottomNavBar extends StatelessWidget {
                 index: 3,
                 selectedIndex: selectedIndex,
                 onTap: onItemTapped,
-                label: 'Clients',
-                icon: Icons.business_outlined,
-                activeIcon: Icons.business_rounded,
+                label: 'Reports',
+                icon: Icons.assessment_outlined,
+                activeIcon: Icons.assessment_rounded,
               ),
             ),
             Expanded(

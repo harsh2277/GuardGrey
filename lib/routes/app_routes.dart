@@ -4,6 +4,7 @@ import 'package:guardgrey/features/auth/screens/auth_gate_screen.dart';
 import 'package:guardgrey/features/auth/screens/login_screen.dart';
 import 'package:guardgrey/features/notifications/screens/notifications_screen.dart';
 import 'package:guardgrey/modules/admin/branches/screens/branches_screen.dart';
+import 'package:guardgrey/modules/admin/clients/screens/clients_screen.dart';
 import 'package:guardgrey/modules/admin/live_tracking/screens/live_tracking_screen.dart';
 import 'package:guardgrey/modules/admin/leave/screens/admin_leave_screen.dart';
 import 'package:guardgrey/modules/admin/managers/screens/managers_list_screen.dart';
@@ -26,6 +27,7 @@ class AppRoutes {
   static const String adminMain = '/admin';
   static const String adminManagers = '/admin/managers';
   static const String adminBranches = '/admin/branches';
+  static const String adminClients = '/admin/clients';
   static const String adminReports = '/admin/reports';
   static const String adminLeaves = '/admin/leaves';
   static const String adminFieldVisits = '/field-visits';
@@ -65,6 +67,11 @@ class AppRoutes {
       case adminBranches:
         return MaterialPageRoute<void>(
           builder: (_) => RouteGuard.requireSignedIn(const BranchesScreen()),
+          settings: routeSettings,
+        );
+      case adminClients:
+        return MaterialPageRoute<void>(
+          builder: (_) => RouteGuard.requireSignedIn(const ClientsScreen()),
           settings: routeSettings,
         );
       case adminReports:

@@ -7,9 +7,12 @@ import 'package:guardgrey/core/theme/app_text_styles.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/core/widgets/section_header.dart';
 import 'package:guardgrey/data/models/client_model.dart';
+import 'package:guardgrey/data/models/manager_model.dart';
 import 'package:guardgrey/data/models/site_model.dart';
 import 'package:guardgrey/data/repositories/client_repository.dart';
+import 'package:guardgrey/modules/manager/common/services/manager_session_service.dart';
 import 'package:guardgrey/modules/manager/common/widgets/manager_ui.dart';
+import 'package:guardgrey/modules/manager/visits/screens/manager_visit_form_screen.dart';
 import 'package:guardgrey/modules/manager/visits/models/manager_visit_entry.dart';
 import 'package:guardgrey/modules/manager/visits/repositories/manager_visit_repository.dart';
 
@@ -42,6 +45,46 @@ class ManagerSiteDetailScreen extends StatelessWidget {
               site.name,
               style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
             ),
+          ),
+          floatingActionButton: StreamBuilder<ManagerModel?>(
+            stream: ManagerSessionService.instance.watchCurrentManager(),
+            builder: (context, managerSnapshot) {
+              final manager = managerSnapshot.data;
+              if (manager == null || manager.id != managerId) {
+                return const SizedBox.shrink();
+              }
+
+              return FloatingActionButton.extended(
+                heroTag: 'manager-site-add-visit',
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ManagerVisitFormScreen(
+                        manager: manager,
+                        sites: [site],
+                        initialSiteId: site.id,
+                      ),
+                    ),
+                  );
+                  if (result == true && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.success,
+                        content: Text(
+                          'Visit created successfully.',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.add_business_outlined),
+                label: const Text('Add Visit'),
+              );
+            },
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),

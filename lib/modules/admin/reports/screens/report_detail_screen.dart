@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
@@ -6,12 +8,15 @@ import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/data/models/report_model.dart';
 import 'package:guardgrey/data/repositories/report_repository.dart';
 
-import 'report_form_screen.dart';
-
 class ReportDetailScreen extends StatelessWidget {
   const ReportDetailScreen({super.key, required this.reportId});
 
   final String reportId;
+
+  bool _isNetworkImage(String value) {
+    final imagePath = value.trim();
+    return imagePath.startsWith('http://') || imagePath.startsWith('https://');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,21 +52,6 @@ class ReportDetailScreen extends StatelessWidget {
               'Report Detail',
               style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
             ),
-            actions: [
-              IconButton(
-                onPressed: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ReportFormScreen(report: report),
-                  ),
-                ),
-                icon: const Icon(Icons.edit_outlined),
-              ),
-              IconButton(
-                onPressed: () => _delete(context, report),
-                icon: const Icon(Icons.delete_outline_rounded),
-              ),
-            ],
           ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -148,15 +138,31 @@ class ReportDetailScreen extends StatelessWidget {
                     final url = report.imageUrls[index];
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(18),
-                      child: Image.network(
-                        url,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: AppColors.neutral100,
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.broken_image_outlined),
-                        ),
-                      ),
+                      child: _isNetworkImage(url)
+                          ? Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    color: AppColors.neutral100,
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.broken_image_outlined,
+                                    ),
+                                  ),
+                            )
+                          : Image.file(
+                              File(url),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    color: AppColors.neutral100,
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.broken_image_outlined,
+                                    ),
+                                  ),
+                            ),
                     );
                   },
                 ),
@@ -165,14 +171,6 @@ class ReportDetailScreen extends StatelessWidget {
         );
       },
     );
-  }
-
-  Future<void> _delete(BuildContext context, ReportModel report) async {
-    await ReportRepository.instance.deleteReport(report.id);
-    if (!context.mounted) {
-      return;
-    }
-    Navigator.pop(context);
   }
 }
 

@@ -14,6 +14,7 @@ class ReportModel {
     required this.location,
     required this.questions,
     required this.imageUrls,
+    this.isReadOnly = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +28,7 @@ class ReportModel {
   final AppLocation location;
   final List<ReportQuestion> questions;
   final List<String> imageUrls;
+  final bool isReadOnly;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -43,6 +45,7 @@ class ReportModel {
           .map((item) => item.toMap())
           .toList(growable: false),
       'imageUrls': imageUrls,
+      'isReadOnly': isReadOnly,
     };
   }
 
@@ -56,6 +59,7 @@ class ReportModel {
     AppLocation? location,
     List<ReportQuestion>? questions,
     List<String>? imageUrls,
+    bool? isReadOnly,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -69,6 +73,7 @@ class ReportModel {
       location: location ?? this.location,
       questions: questions ?? this.questions,
       imageUrls: imageUrls ?? this.imageUrls,
+      isReadOnly: isReadOnly ?? this.isReadOnly,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

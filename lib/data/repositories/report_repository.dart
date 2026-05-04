@@ -71,6 +71,7 @@ class ReportRepository {
       location: AppLocation.fromMap(mapValue(data['location'])),
       questions: questions,
       imageUrls: stringList(data['imageUrls']),
+      isReadOnly: data['isReadOnly'] as bool? ?? false,
       createdAt: toDateTime(data['createdAt']),
       updatedAt: toDateTime(data['updatedAt']),
     );

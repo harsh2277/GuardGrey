@@ -1,5 +1,19 @@
+import 'dart:io';
+
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'package:guardgrey/core/utils/image_compress_util.dart';
+
+class UploadedImageReference {
+  const UploadedImageReference({
+    required this.downloadUrl,
+    required this.storagePath,
+  });
+
+  final String downloadUrl;
+  final String storagePath;
+}
 
 class FirebaseStorageService {
   FirebaseStorageService._({FirebaseStorage? storage})
@@ -15,18 +29,33 @@ class FirebaseStorageService {
     required String folder,
     required List<XFile> files,
   }) async {
+    final uploadedReferences = await uploadImageReferences(
+      folder: folder,
+      files: files,
+    );
+    return uploadedReferences
+        .map((item) => item.downloadUrl)
+        .toList(growable: false);
+  }
+
+  Future<List<UploadedImageReference>> uploadImageReferences({
+    required String folder,
+    required List<XFile> files,
+  }) async {
     if (files.isEmpty) {
-      return const <String>[];
+      return const <UploadedImageReference>[];
     }
     if (files.length > maxImages) {
       throw ArgumentError('Only up to $maxImages images are allowed.');
     }
 
-    final uploadedUrls = <String>[];
+    final uploadedReferences = <UploadedImageReference>[];
     for (var index = 0; index < files.length; index++) {
       final file = files[index];
-      final bytes = await file.readAsBytes();
-      final extension = _extensionFor(file.name);
+      final originalFile = File(file.path);
+      final uploadFile = await ImageCompressUtil.compressImage(originalFile);
+      final bytes = await uploadFile.readAsBytes();
+      final extension = _extensionFor(uploadFile.path);
       final path =
           '$folder/${DateTime.now().millisecondsSinceEpoch}_$index$extension';
       final ref = _storage.ref().child(path);
@@ -34,9 +63,17 @@ class FirebaseStorageService {
         contentType: _contentTypeFor(extension),
       );
       final task = await ref.putData(bytes, metadata);
-      uploadedUrls.add(await task.ref.getDownloadURL());
+      uploadedReferences.add(
+        UploadedImageReference(
+          downloadUrl: await task.ref.getDownloadURL(),
+          storagePath: task.ref.fullPath,
+        ),
+      );
+      if (uploadFile.path != originalFile.path && await uploadFile.exists()) {
+        await uploadFile.delete();
+      }
     }
-    return uploadedUrls;
+    return uploadedReferences;
   }
 
   String _extensionFor(String fileName) {

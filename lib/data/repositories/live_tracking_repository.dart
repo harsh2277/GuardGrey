@@ -20,11 +20,26 @@ class LiveTrackingRepository {
     return _liveLocations
         .orderBy('lastUpdated', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => _fromMap(doc.data()))
-              .toList(growable: false),
-        );
+        .map((snapshot) {
+          final latestByManager = <String, ManagerLiveLocationModel>{};
+          for (final doc in snapshot.docs) {
+            final location = _fromMap(doc.data());
+            if (location.managerId.isEmpty ||
+                (location.lat == 0 && location.lng == 0)) {
+              continue;
+            }
+
+            final existing = latestByManager[location.managerId];
+            if (existing == null ||
+                location.lastUpdated.isAfter(existing.lastUpdated)) {
+              latestByManager[location.managerId] = location;
+            }
+          }
+
+          final locations = latestByManager.values.toList(growable: false);
+          locations.sort((a, b) => b.lastUpdated.compareTo(a.lastUpdated));
+          return locations;
+        });
   }
 
   ManagerLiveLocationModel _fromMap(Map<String, dynamic> data) {
@@ -39,5 +54,13 @@ class LiveTrackingRepository {
       helplineNumber: (data['helplineNumber'] as String? ?? '').trim(),
       whatsappNumber: (data['whatsappNumber'] as String? ?? '').trim(),
     );
+  }
+
+  Future<void> saveManagerLiveLocation(
+    ManagerLiveLocationModel location,
+  ) async {
+    await _liveLocations
+        .doc(location.managerId)
+        .set(location.toFirestore(), SetOptions(merge: true));
   }
 }

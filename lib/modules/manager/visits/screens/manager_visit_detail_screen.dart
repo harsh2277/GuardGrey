@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
@@ -16,6 +18,11 @@ class ManagerVisitDetailScreen extends StatelessWidget {
 
   final ManagerVisitEntry visit;
   final VoidCallback onEdit;
+
+  bool _isNetworkImage(String value) {
+    final imagePath = value.trim();
+    return imagePath.startsWith('http://') || imagePath.startsWith('https://');
+  }
 
   Future<void> _delete(BuildContext context) async {
     final shouldDelete = await showDialog<bool>(
@@ -207,15 +214,25 @@ class ManagerVisitDetailScreen extends StatelessWidget {
               ),
               itemBuilder: (context, index) => ClipRRect(
                 borderRadius: BorderRadius.circular(18),
-                child: Image.network(
-                  visit.imageUrls[index],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: AppColors.neutral100,
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.broken_image_outlined),
-                  ),
-                ),
+                child: _isNetworkImage(visit.imageUrls[index])
+                    ? Image.network(
+                        visit.imageUrls[index],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: AppColors.neutral100,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.broken_image_outlined),
+                        ),
+                      )
+                    : Image.file(
+                        File(visit.imageUrls[index]),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: AppColors.neutral100,
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.broken_image_outlined),
+                        ),
+                      ),
               ),
             ),
         ],
