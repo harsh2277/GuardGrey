@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
@@ -48,58 +49,118 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTopHeader(context),
-                const SizedBox(height: 8),
-                _buildSearchBar(),
-              ],
-            ),
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    // Dynamic linear gradient to create beautiful background depth
+    final bgGradient = isDark
+        ? LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              theme.scaffoldBackgroundColor,
+              AppColors.neutral900,
+            ],
+          )
+        : const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primary800, // Rich darker blue
+              AppColors.primary900, // Deepest navy blue
+            ],
+          );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light, // Light icons for the dark header
+        statusBarBrightness: Brightness.dark, // For iOS
+      ),
+      child: Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: bgGradient,
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-              child: Column(
+          child: Stack(
+            children: [
+              // 🎨 Ambient dynamic organic waves in background
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: BackgroundPatternPainter(context, isDark),
+                ),
+              ),
+
+              // Actual Column layout
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionHeader('Overview'),
-                  const SizedBox(height: 8),
-                  _buildKPIGrid(context),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSectionHeader('Attendance Summary'),
-                      _buildViewAllButton(
-                        onTap: () => _openAttendance(context),
+                  // 1. Header Portion (Dashboard Header + Search bar)
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(20, 16 + topPadding, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTopHeader(context),
+                        const SizedBox(height: 16),
+                        _buildSearchBar(),
+                      ],
+                    ),
+                  ),
+
+                  // 2. Overlapping Bottom Card Portion
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDark ? theme.scaffoldBackgroundColor : Colors.white,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                       ),
-                    ],
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionHeader('Overview'),
+                              const SizedBox(height: 10),
+                              _buildKPIGrid(context),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionHeader('Attendance Summary'),
+                                  _buildViewAllButton(
+                                    onTap: () => _openAttendance(context),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              _buildAttendanceSummary(context),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildSectionHeader('On Duty Managers'),
+                                  _buildViewAllButton(onTap: () => _openManagers(context)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              _buildActiveManagersList(context),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  _buildAttendanceSummary(context),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildSectionHeader('On Duty Managers'),
-                      _buildViewAllButton(onTap: () => _openManagers(context)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _buildActiveManagersList(context),
                 ],
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -114,8 +175,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               'Dashboard',
               style: AppTextStyles.headingMedium.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.neutral900,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
                 letterSpacing: -0.5,
               ),
             ),
@@ -123,7 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               'Welcome back, Admin',
               style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.neutral500,
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -143,39 +204,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 return Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.white.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.neutral200),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
                       const Icon(
                         Icons.notifications_none_rounded,
-                        color: AppColors.neutral700,
+                        color: Colors.white,
                         size: 24,
                       ),
                       if (unreadCount > 0)
                         Positioned(
-                          right: -1,
-                          top: -1,
+                          right: 2,
+                          top: 2,
                           child: Container(
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            width: 8,
+                            height: 8,
                             decoration: const BoxDecoration(
                               color: AppColors.error,
                               shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              unreadCount > 9 ? '9+' : '$unreadCount',
-                              style: AppTextStyles.caption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
                             ),
                           ),
                         ),
@@ -419,12 +469,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       title,
       style: AppTextStyles.bodyMedium.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: AppColors.neutral900,
+        color: isDark ? Colors.white : AppColors.neutral900,
       ),
     );
   }
@@ -435,7 +486,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Text(
         'View All',
         style: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.primary600,
+          color: AppColors.primary500,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -443,6 +494,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAttendanceSummary(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<AttendanceRecord>>(
       stream: _repository.watchAttendance(),
       builder: (context, snapshot) {
@@ -494,7 +546,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Container(
                       width: 1,
                       height: 42,
-                      color: AppColors.neutral200,
+                      color: isDark ? AppColors.neutral800 : AppColors.neutral200,
                     ),
                     Expanded(
                       child: _buildAttendanceMetric(
@@ -506,7 +558,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Container(
                       width: 1,
                       height: 42,
-                      color: AppColors.neutral200,
+                      color: isDark ? AppColors.neutral800 : AppColors.neutral200,
                     ),
                     Expanded(
                       child: _buildAttendanceMetric(
@@ -524,7 +576,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.neutral50,
+                    color: isDark ? AppColors.neutral900 : AppColors.neutral50,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
@@ -535,7 +587,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               ? 'No attendance recorded today'
                               : 'Today\'s attendance coverage',
                           style: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.neutral700,
+                            color: isDark ? AppColors.neutral300 : AppColors.neutral700,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -582,6 +634,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildActiveManagersList(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<ManagerModel>>(
       stream: _repository.watchManagers(),
       builder: (context, managersSnapshot) {
@@ -619,6 +672,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
 
                 return ListView.separated(
+                  padding: EdgeInsets.zero,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: managerCards.length,
@@ -627,7 +681,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   itemBuilder: (context, index) {
                     final manager = managerCards[index];
                     return Material(
-                      color: Colors.white,
+                      color: isDark ? AppColors.surfaceDark : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
@@ -636,21 +690,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? AppColors.surfaceDark : Colors.white,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.neutral200),
+                            border: Border.all(
+                              color: isDark ? AppColors.neutral800 : AppColors.neutral200,
+                            ),
                           ),
                           child: Row(
                             children: [
                               CircleAvatar(
                                 radius: 20,
-                                backgroundColor: AppColors.primary50,
+                                backgroundColor: isDark ? AppColors.neutral800 : AppColors.primary50,
                                 child: Text(
                                   manager.name.isEmpty
                                       ? '?'
                                       : manager.name.substring(0, 1),
                                   style: AppTextStyles.bodyMedium.copyWith(
-                                    color: AppColors.primary600,
+                                    color: isDark ? AppColors.primary400 : AppColors.primary600,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -669,7 +725,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     Text(
                                       manager.siteName,
                                       style: AppTextStyles.bodySmall.copyWith(
-                                        color: AppColors.neutral500,
+                                        color: isDark ? AppColors.neutral400 : AppColors.neutral500,
                                       ),
                                     ),
                                   ],
@@ -698,9 +754,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                     ),
                                   const SizedBox(height: 8),
-                                  const Icon(
+                                  Icon(
                                     Icons.chevron_right_rounded,
-                                    color: AppColors.neutral400,
+                                    color: isDark ? AppColors.neutral600 : AppColors.neutral400,
                                   ),
                                 ],
                               ),
@@ -720,22 +776,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSummaryContainer({required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.surfaceDark : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.neutral200),
+        border: Border.all(
+          color: isDark ? AppColors.neutral800 : AppColors.neutral200,
+        ),
       ),
       child: child,
     );
   }
 
   Widget _buildFallbackText(String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Text(
         message,
-        style: AppTextStyles.bodyMedium.copyWith(color: AppColors.neutral500),
+        style: AppTextStyles.bodyMedium.copyWith(
+          color: isDark ? AppColors.neutral400 : AppColors.neutral500,
+        ),
       ),
     );
   }
@@ -1006,4 +1068,97 @@ class _DashboardSearchSuggestion {
   final String subtitle;
   final IconData icon;
   final void Function(BuildContext context) onTap;
+}
+
+class BackgroundPatternPainter extends CustomPainter {
+  final BuildContext context;
+  final bool isDark;
+
+  BackgroundPatternPainter(this.context, this.isDark);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    
+    // Wave 1: Beautiful organic top right curve (slightly shorter than login screen to fit dashboard header nicely!)
+    final path1 = Path();
+    path1.moveTo(0, 0);
+    path1.lineTo(size.width, 0);
+    path1.lineTo(size.width, size.height * 0.22);
+    path1.quadraticBezierTo(
+      size.width * 0.5,
+      size.height * 0.32,
+      0,
+      size.height * 0.20,
+    );
+    path1.close();
+    
+    final gradient1 = LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: [
+        AppColors.primary600.withValues(alpha: 0.35),
+        AppColors.primary900.withValues(alpha: 0.05),
+      ],
+    );
+    paint.shader = gradient1.createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.35));
+    canvas.drawPath(path1, paint);
+    
+    // Wave 1 Border Stroke
+    final borderPaint1 = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..color = AppColors.primary300.withValues(alpha: 0.30);
+    final borderPath1 = Path();
+    borderPath1.moveTo(0, size.height * 0.20);
+    borderPath1.quadraticBezierTo(
+      size.width * 0.5,
+      size.height * 0.32,
+      size.width,
+      size.height * 0.22,
+    );
+    canvas.drawPath(borderPath1, borderPaint1);
+    
+    // Wave 2: Overlapping curve
+    final path2 = Path();
+    path2.moveTo(size.width, 0);
+    path2.lineTo(0, 0);
+    path2.lineTo(0, size.height * 0.16);
+    path2.quadraticBezierTo(
+      size.width * 0.45,
+      size.height * 0.12,
+      size.width,
+      size.height * 0.25,
+    );
+    path2.close();
+    
+    final gradient2 = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        AppColors.primary500.withValues(alpha: 0.25),
+        AppColors.primary800.withValues(alpha: 0.0),
+      ],
+    );
+    paint.shader = gradient2.createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.3));
+    canvas.drawPath(path2, paint);
+    
+    // Wave 2 Border Stroke
+    final borderPaint2 = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = AppColors.primary200.withValues(alpha: 0.22);
+    final borderPath2 = Path();
+    borderPath2.moveTo(0, size.height * 0.16);
+    borderPath2.quadraticBezierTo(
+      size.width * 0.45,
+      size.height * 0.12,
+      size.width,
+      size.height * 0.25,
+    );
+    canvas.drawPath(borderPath2, borderPaint2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -23,13 +23,19 @@ class KPICard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: backgroundColor ?? Colors.white,
+        color: backgroundColor ?? (isDark ? theme.cardTheme.color ?? AppColors.surfaceDark : Colors.white),
         borderRadius: BorderRadius.circular(AppTheme.cardRadius - 8),
-        border: Border.all(color: AppColors.neutral200, width: 1),
+        border: Border.all(
+          color: isDark ? AppColors.neutral800 : AppColors.neutral200,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -55,7 +61,7 @@ class KPICard extends StatelessWidget {
                   value,
                   style: AppTextStyles.headingSmall.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.neutral900,
+                    color: isDark ? Colors.white : AppColors.neutral900,
                     fontSize: 22,
                     height: 1.0,
                   ),
@@ -63,7 +69,7 @@ class KPICard extends StatelessWidget {
                 Text(
                   title,
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.neutral500,
+                    color: isDark ? AppColors.neutral400 : AppColors.neutral500,
                     fontWeight: FontWeight.w600,
                     fontSize: 10,
                   ),
