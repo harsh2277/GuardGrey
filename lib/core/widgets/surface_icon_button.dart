@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 
 class SurfaceIconButton extends StatelessWidget {
   const SurfaceIconButton({
@@ -9,7 +10,7 @@ class SurfaceIconButton extends StatelessWidget {
     required this.onTap,
     this.size = 50,
     this.iconSize = 22,
-    this.borderRadius = 18,
+    this.borderRadius = AppTheme.buttonRadius,
     this.iconColor = AppColors.neutral700,
     this.backgroundColor = AppColors.neutral100,
     this.borderColor = AppColors.neutral200,

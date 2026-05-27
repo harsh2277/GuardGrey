@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 
 class DropdownSelectorItem {
   final String id;
@@ -60,15 +61,15 @@ class DropdownSelector extends StatelessWidget {
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.primary500, width: 1.5),
         ),
       ),

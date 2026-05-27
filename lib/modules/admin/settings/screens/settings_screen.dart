@@ -220,12 +220,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed: _isSendingTestNotification
                         ? null
                         : _sendTestNotification,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
                     child: Text(
                       _isSendingTestNotification
                           ? 'Sending...'
@@ -270,12 +264,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isSeedingDatabase ? null : _seedDatabase,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
                     child: Text(
                       _isSeedingDatabase
                           ? 'Seeding Database...'

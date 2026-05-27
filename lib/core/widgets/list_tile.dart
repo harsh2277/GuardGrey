@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 
 class AppListTile extends StatelessWidget {
   const AppListTile({
@@ -27,14 +28,14 @@ class AppListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             border: Border.all(color: AppColors.neutral200),
           ),
           child: Row(
@@ -45,7 +46,7 @@ class AppListTile extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     color: AppColors.primary50,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppTheme.borderRadius - 14),
                   ),
                   child: Icon(leadingIcon, color: iconColor),
                 ),

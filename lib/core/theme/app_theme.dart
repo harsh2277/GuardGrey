@@ -16,9 +16,9 @@ class AppSpacing {
 class AppTheme {
   AppTheme._();
 
-  static const double borderRadius = 20.0;
-  static const double cardRadius = 24.0;
-  static const double buttonRadius = 24.0;
+  static const double borderRadius = 30.0;
+  static const double cardRadius = 28.0;
+  static const double buttonRadius = 30.0;
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -109,6 +109,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(borderRadius),
           borderSide: const BorderSide(color: AppColors.error),
         ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
+        ),
         hintStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.neutral400,
         ),
@@ -178,6 +182,20 @@ class AppTheme {
         ),
       ),
 
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary500,
+          side: const BorderSide(color: AppColors.primary500, width: 1.5),
+          minimumSize: const Size(double.infinity, 56),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(buttonRadius),
+          ),
+          textStyle: AppTextStyles.bodyLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+
       // TextField Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -197,6 +215,14 @@ class AppTheme {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
           borderSide: const BorderSide(color: AppColors.primary500, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         hintStyle: AppTextStyles.bodyMedium.copyWith(
           color: AppColors.neutral500,

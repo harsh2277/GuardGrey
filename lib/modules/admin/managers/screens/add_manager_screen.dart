@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 import 'package:guardgrey/core/widgets/selected_site_chip.dart';
 import 'package:guardgrey/core/widgets/site_selector_bottom_sheet.dart';
 import 'package:guardgrey/data/models/manager_model.dart';
@@ -211,9 +212,6 @@ class _AddManagerScreenState extends State<AddManagerScreen> {
                             label: const Text('Assign Sites'),
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(double.infinity, 52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
                             ),
                           ),
                         ),
@@ -252,9 +250,6 @@ class _AddManagerScreenState extends State<AddManagerScreen> {
                       onPressed: _saveManager,
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
                       ),
                       child: const Text('Save Manager'),
                     ),
@@ -300,15 +295,15 @@ class _AddManagerScreenState extends State<AddManagerScreen> {
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.primary500, width: 1.5),
         ),
       ),

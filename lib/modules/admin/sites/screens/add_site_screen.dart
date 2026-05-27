@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 import 'package:guardgrey/core/widgets/dropdown_selector.dart';
 import 'package:guardgrey/data/models/branch_model.dart';
 import 'package:guardgrey/data/models/client_model.dart';
@@ -386,9 +387,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                               onPressed: () => _saveSite(branches),
                               style: ElevatedButton.styleFrom(
                                 minimumSize: const Size(double.infinity, 54),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
                               ),
                               child: const Text('Save Site'),
                             ),
@@ -444,15 +442,15 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
           vertical: maxLines > 1 ? 16 : 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.primary500, width: 1.5),
         ),
       ),

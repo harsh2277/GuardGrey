@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 import 'package:guardgrey/core/utils/date_time_display.dart';
 import 'package:guardgrey/data/models/app_location.dart';
 import 'package:guardgrey/data/models/manager_live_location_model.dart';
@@ -334,7 +335,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: _selectDateTime,
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(AppTheme.borderRadius),
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
@@ -343,7 +344,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(AppTheme.borderRadius),
                             border: Border.all(color: AppColors.neutral200),
                           ),
                           child: Text(
@@ -364,7 +365,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
                               border: Border.all(color: AppColors.neutral200),
                             ),
                             child: Column(
@@ -475,9 +476,6 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                               : () => _save(managers, locations),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(double.infinity, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
                           ),
                           child: Text(_isSaving ? 'Saving...' : 'Save Report'),
                         ),
@@ -528,11 +526,11 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
       ),
@@ -554,11 +552,11 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppTheme.borderRadius),
           borderSide: const BorderSide(color: AppColors.neutral200),
         ),
       ),
@@ -589,7 +587,7 @@ class _LocationPreviewCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         border: Border.all(color: AppColors.neutral200),
       ),
       child: Column(

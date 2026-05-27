@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:guardgrey/core/theme/app_colors.dart';
 import 'package:guardgrey/core/theme/app_text_styles.dart';
+import 'package:guardgrey/core/theme/app_theme.dart';
 
 class EditProfileResult {
   const EditProfileResult({
@@ -134,9 +135,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   onPressed: _saveChanges,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
                   ),
                   child: const Text('Save Changes'),
                 ),
@@ -189,15 +187,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             vertical: 14,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppTheme.borderRadius),
             borderSide: const BorderSide(color: AppColors.neutral200),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppTheme.borderRadius),
             borderSide: const BorderSide(color: AppColors.neutral200),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(AppTheme.borderRadius),
             borderSide: const BorderSide(
               color: AppColors.primary500,
               width: 1.5,
