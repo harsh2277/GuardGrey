@@ -16,19 +16,25 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.neutral300, width: 1),
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppColors.neutral800 : AppColors.neutral200,
+            width: 1,
+          ),
+        ),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(34),
           topRight: Radius.circular(34),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 28,
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.06),
+            blurRadius: 24,
             offset: const Offset(0, -6),
           ),
         ],
@@ -119,30 +125,45 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isSelected = selectedIndex == index;
-    final Color activeColor = AppColors.primary600;
-    final Color inactiveColor = AppColors.neutral500;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final Color activeColor = isDark ? AppColors.primary300 : AppColors.primary600;
+    final Color inactiveColor = isDark ? AppColors.neutral400 : AppColors.neutral500;
+    final Color pillColor = isDark 
+        ? AppColors.primary300.withValues(alpha: 0.15) 
+        : AppColors.primary500.withValues(alpha: 0.08);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
+      splashColor: activeColor.withValues(alpha: 0.1),
+      highlightColor: activeColor.withValues(alpha: 0.05),
       onTap: () => onTap(index),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? activeColor : inactiveColor,
-              size: 28,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? pillColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                color: isSelected ? activeColor : inactiveColor,
+                size: 24,
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Text(
               label,
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.bodySmall.copyWith(
-                fontSize: 12,
+                fontSize: 11,
                 color: isSelected ? activeColor : inactiveColor,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
